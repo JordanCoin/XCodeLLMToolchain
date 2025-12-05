@@ -84,3 +84,11 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 repro/crash_suite
 repro/crash_test
+
+# Output directory for local runs
+_output/
+
+
+# Python cache
+__pycache__/
+*.pyc

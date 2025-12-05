@@ -15,7 +15,7 @@ public struct MemoryExplainerEngine {
     /// Explain a crash with structured output.
     /// Prompt is minimal - @Guide descriptions do the heavy lifting.
     public func explainCrashStructured(json: String, codemapContext: String = "") async throws -> CrashExplanation {
-        let context = codemapContext.isEmpty ? "" : "\n\nCode context:\n\(String(codemapContext.prefix(600)))"
+        let context = codemapContext.isEmpty ? "" : "\n\nCode context:\n\(String(codemapContext.prefix(20000)))"
 
         let session = LanguageModelSession(instructions: makeCrashInstructions())
         let response = try await session.respond(

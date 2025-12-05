@@ -1,28 +1,28 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO_RAW_URL=${MEMORY_EXPLAINER_REPO:-"https://raw.githubusercontent.com/you/memory-explainer-tools/main/lldb"}
-TARGET_DIR="$HOME/Library/Application Support/MemoryExplainer/lldb"
+REPO_RAW_URL=${XCODE_LLM_REPO:-"https://raw.githubusercontent.com/JordanCoin/XcodeLLMToolchain/main/lldb"}
+TARGET_DIR="$HOME/Library/Application Support/XcodeLLMToolchain/lldb"
 LLDBINIT="$HOME/.lldbinit-Xcode"
-FILES=("crash_capture.py")
+FILES=("plugin.py" "capture_lib/__init__.py" "capture_lib/analysis.py" "capture_lib/commands.py" "capture_lib/formatting.py" "capture_lib/tools.py" "capture_lib/utils.py")
 
 banner() {
   cat <<'BANNER'
- __  __                                      ______            _             
-|  \/  | ___ _ __ ___  _ __ ___  _   _ _ __ |  ____|          | |            
-| |\/| |/ _ \ '__/ _ \| '_ ` _ \| | | | '_ \| |__ ___  ___  __| |_ __  _   _ 
-| |  | |  __/ | | (_) | | | | | | |_| | | | |  __/ _ \/ _ \/ _` | '_ \| | | |
-|_|  |_|\___|_|  \___/|_| |_| |_|\__,_|_| |_|_|  \___/\___/\__,_| .__/ \__, |
-                                                             | |     __/ |
-                                                             |_|    |___/ 
-Memory Explainer LLDB scripts installed. We're so back, fam.
+ __  __         _        _    _    __  __ _____         _     _           _
+ \ \/ /__ ___  | |_ ___ | |  | |  |  \/  |_   _|__  ___| |___| |__   __ _(_)_ __
+  \  // _/ _ \ | __/ _ \| |  | |  | |\/| | | |/ _ \/ _ \ / __| '_ \ / _` | | '_ \
+  /  \ (_| (_) || || (_) | |__| |__| |  | | | | (_) | (_) | (__| | | | (_| | | | | |
+ /_/\_\___\___/ \__\___/|____|____|_|  |_| |_|\___/ \___/\___|_| |_|\__,_|_|_| |_|
+
+XcodeLLMToolchain installed successfully.
 BANNER
 }
 
 mkdir -p "$TARGET_DIR"
+mkdir -p "$TARGET_DIR/capture_lib"
 
 for file in "${FILES[@]}"; do
-  echo "Downloading $file → $TARGET_DIR"
+  echo "Downloading $file → $TARGET_DIR/$file"
   curl -fsSL "$REPO_RAW_URL/$file" -o "$TARGET_DIR/$file"
   chmod +x "$TARGET_DIR/$file" || true
   IMPORT_LINE="command script import $TARGET_DIR/$file"
