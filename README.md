@@ -3,8 +3,8 @@
 > I'm Jordan — rogue iOS engineer, creator of codemap, and the guy who ships unhackable tools in a weekend. Memory Explainer is my latest gremlin: a macOS menu-bar app that lets Apple's on-device 3B LLM roast your leaks while you debug.
 
 ## Hybrid open-source drop
-- **Open now:** LLDB command scripts + the core Swift brains that talk to xctrace, codemap, and the Foundation Model.
-- **Closed for now:** The polished menu bar UI + signing/distribution bits. You'll get signed binaries so you can ship today while I keep the sauce hot.
+- **Open now:** LLDB command scripts + the **MemoryExplainerCore** Swift package that talks to xctrace, codemap, and the Foundation Model. Drop it into your own tooling or keep it CLI-only.
+- **Closed for now:** The polished menu bar UI + signing/distribution bits live in a private Xcode repo. You'll get signed binaries so you can ship today while I keep the sauce hot.
 - **Why:** I want you to steal the debugger magic, fork it, and bend it. The UX is staying closed so I can keep shipping chaos without babysitting forks. Call it source-available with a free-range attitude.
 
 ## Why this exists in 2025
@@ -20,6 +20,11 @@
 - Drops the scripts into `~/Library/Application Support/MemoryExplainer/lldb/`
 - Appends `command script import` lines to `~/.lldbinit-Xcode`
 - Prints an ASCII banner so you know it's real
+
+## Pulling the LLM bits out of Xcode
+- Use `MemoryExplainerCore` (Swift package) as the boundary between the public tooling and the private menu bar app.
+- The Xcode project can stay private; point it at this package via SwiftPM and swap in your own `LLMClient` if you want a different backend.
+- The CLI target `memory-explainer` is now just a thin wrapper around the core so you can script it without touching Xcode.
 
 ## Real outputs (no cherry-pick)
 ### `crash_explain` roasting a UAF

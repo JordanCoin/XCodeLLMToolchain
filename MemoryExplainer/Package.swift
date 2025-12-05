@@ -8,12 +8,17 @@ let package = Package(
         .iOS(.v26)
     ],
     products: [
+        .library(name: "MemoryExplainerCore", targets: ["MemoryExplainerCore"]),
         .executable(name: "memory-explainer", targets: ["MemoryExplainer"]),
     ],
     targets: [
+        .target(
+            name: "MemoryExplainerCore",
+            dependencies: []
+        ),
         .executableTarget(
             name: "MemoryExplainer",
-            dependencies: []
+            dependencies: ["MemoryExplainerCore"]
         ),
     ]
 )
