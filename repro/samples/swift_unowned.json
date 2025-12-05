@@ -1,0 +1,38 @@
+{
+  "crash": {
+    "stop_reason": 6,
+    "stop_description": "Fatal error: Attempted to read an unowned reference but the object was already deallocated",
+    "thread_id": 1,
+    "crash_type": "swift_unowned_dealloc",
+    "frames": [
+      {
+        "index": 0,
+        "function": "Swift runtime failure: unowned reference already deallocated",
+        "module": "libswiftCore.dylib"
+      },
+      {
+        "index": 1,
+        "function": "Reference.owner.getter",
+        "file": "main.swift",
+        "line": 92
+      },
+      {
+        "index": 2,
+        "function": "crashUnowned()",
+        "file": "main.swift",
+        "line": 101,
+        "variables": [
+          {"name": "ref", "type": "Reference?", "value": "Reference", "summary": "owner: (deallocated)"}
+        ]
+      },
+      {
+        "index": 3,
+        "function": "main",
+        "file": "main.swift",
+        "line": 168
+      }
+    ],
+    "swift_error": "Attempted to read an unowned reference but the object was already deallocated",
+    "memory_note": "Owner object was deallocated when it went out of scope, but Reference still held unowned reference"
+  }
+}
