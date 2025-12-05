@@ -81,7 +81,7 @@ struct MemoryExplainerCLI {
         **Faulty Function:** `\(e.faultyFunction)`
         **Root Cause:** \(e.rootCause)
         **Fix:** \(e.suggestedFix)
-        **Confidence:** \(e.confidence.rawValue)
+        **Confidence:** \(e.confidence)
         """
     }
 
@@ -130,7 +130,7 @@ struct MemoryExplainerCLI {
             print("   Faulty Function: \(explanation.faultyFunction)")
             print("   Root Cause: \(explanation.rootCause)")
             print("   Fix: \(explanation.suggestedFix)")
-            print("   Confidence: \(explanation.confidence.rawValue)")
+            print("   Confidence: \(explanation.confidence)")
 
             print("\n" + "=" * 50)
             print("🤔 Does the explanation match the generated crash?")

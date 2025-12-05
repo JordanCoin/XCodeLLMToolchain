@@ -2,119 +2,103 @@ import Foundation
 import FoundationModels
 
 /// Core engine for memory/crash explanation using structured output and tool calling.
+/// Uses Instructions for consistent behavior, @Generable for type-safe output.
 public struct MemoryExplainerEngine {
-    /// Tools available to the model for gathering additional context
     private let tools: [any Tool]
 
     public init(enableTools: Bool = false) {
-        if enableTools {
-            self.tools = [ReadSourceTool(), CodeMapTool()]
-        } else {
-            self.tools = []
-        }
+        self.tools = enableTools ? [ReadSourceTool(), CodeMapTool()] : []
     }
 
-    /// Explain a crash with structured output - prevents hallucination via constrained decoding.
+    // MARK: - Crash Analysis
+
+    /// Explain a crash with structured output.
+    /// Prompt is minimal - @Guide descriptions do the heavy lifting.
     public func explainCrashStructured(json: String, codemapContext: String = "") async throws -> CrashExplanation {
-        let context = codemapContext.count > 600 ? String(codemapContext.prefix(600)) + "..." : codemapContext
+        let context = codemapContext.isEmpty ? "" : "\n\nCode context:\n\(String(codemapContext.prefix(600)))"
 
-        let prompt = """
-        Analyze this iOS/macOS crash. Only reference functions/files shown in the data.
-        \(tools.isEmpty ? "" : "You can use tools to read source code or get dependency info if needed.")
-
-        CRASH DATA:
-        \(json)
-        \(context.isEmpty ? "" : "\nCODE CONTEXT:\n\(context)")
-        """
-
-        let session = LanguageModelSession(tools: tools)
-        let response = try await session.respond(to: prompt, generating: CrashExplanation.self)
+        let session = LanguageModelSession(instructions: makeCrashInstructions())
+        let response = try await session.respond(
+            to: "Analyze:\n\(json)\(context)",
+            generating: CrashExplanation.self
+        )
         return response.content
     }
 
-    /// Explain a crash with tools enabled - model can fetch additional context
+    /// Explain a crash with tools - model can read source files.
     public func explainCrashWithTools(json: String, projectPath: String) async throws -> CrashExplanation {
-        let prompt = """
-        Analyze this iOS/macOS crash. You have tools available:
-        - read_source: Read source code around crash line
-        - get_dependencies: Get file dependency info from codemap
-
-        Use these tools if the crash data references files that exist in: \(projectPath)
-
-        CRASH DATA:
-        \(json)
-
-        First gather context with tools, then provide your analysis.
-        """
-
-        let session = LanguageModelSession(tools: [ReadSourceTool(), CodeMapTool()])
-        let response = try await session.respond(to: prompt, generating: CrashExplanation.self)
+        let session = LanguageModelSession(
+            tools: [ReadSourceTool(), CodeMapTool()],
+            instructions: makeCrashInstructionsWithTools()
+        )
+        let response = try await session.respond(
+            to: "Analyze crash in project \(projectPath):\n\(json)",
+            generating: CrashExplanation.self
+        )
         return response.content
     }
+
+    // MARK: - Memory Analysis
 
     /// Explain memory with structured output.
     public func explainMemoryStructured(json: String) async throws -> MemoryExplanation {
-        let prompt = """
-        Analyze this iOS/macOS memory data.
-
-        \(json)
-        """
-
-        let session = LanguageModelSession()
-        let response = try await session.respond(to: prompt, generating: MemoryExplanation.self)
+        let session = LanguageModelSession(instructions: makeMemoryInstructions())
+        let response = try await session.respond(
+            to: "Analyze:\n\(json)",
+            generating: MemoryExplanation.self
+        )
         return response.content
     }
 
-    // MARK: - Legacy string-based methods (for CLI compatibility)
+    // MARK: - Generic Analysis
 
-    /// Explain a crash (returns formatted string).
+    /// Generic explanation with structured output.
+    public func explainGenericStructured(json: String, context: String = "") async throws -> GenericExplanation {
+        let ctx = context.isEmpty ? "" : "\n\nContext:\n\(String(context.prefix(500)))"
+
+        let session = LanguageModelSession()
+        let response = try await session.respond(
+            to: "Analyze this iOS/macOS data:\n\(json)\(ctx)",
+            generating: GenericExplanation.self
+        )
+        return response.content
+    }
+
+    // MARK: - Legacy String Methods (CLI compatibility)
+
     public func explainCrash(json: String, codemapContext: String = "") async throws -> String {
         let result = try await explainCrashStructured(json: json, codemapContext: codemapContext)
         return formatCrashExplanation(result)
     }
 
-    /// Explain memory (returns formatted string).
     public func explainMemory(json: String) async throws -> String {
         let result = try await explainMemoryStructured(json: json)
         return formatMemoryExplanation(result)
     }
 
-    /// Generic explanation (still uses freeform for flexibility).
     public func explainGeneric(json: String, context: String = "") async throws -> String {
-        let trimmedContext = context.count > 500 ? String(context.prefix(500)) + "..." : context
-
-        let prompt = """
-        Expert iOS/macOS developer. Analyze this data briefly.
-
-        \(json)
-        \(trimmedContext.isEmpty ? "" : "\nCONTEXT:\n\(trimmedContext)")
-        """
-
-        let session = LanguageModelSession()
-        let response = try await session.respond(to: prompt)
-        return response.content
+        let result = try await explainGenericStructured(json: json, context: context)
+        return formatGenericExplanation(result)
     }
 
-    // MARK: - Crash Generation (for testing/adversarial)
+    // MARK: - Crash Generation
 
-    /// Generate a realistic crash scenario using structured output
+    /// Generate a realistic crash scenario.
     public func generateCrash(scenario: String = "") async throws -> GeneratedCrash {
-        let prompt = """
-        Generate a realistic iOS/macOS crash scenario.
-        \(scenario.isEmpty ? "Pick an interesting crash type that would be tricky to debug." : "Scenario: \(scenario)")
-        Use realistic Swift/UIKit function and file names.
-        """
+        let prompt = scenario.isEmpty
+            ? "Generate a tricky iOS/macOS crash scenario."
+            : "Generate crash scenario: \(scenario)"
 
         let session = LanguageModelSession()
         let response = try await session.respond(to: prompt, generating: GeneratedCrash.self)
         return response.content
     }
 
-    /// Generate and immediately explain (for battle testing)
+    /// Generate and explain (model vs model).
     public func battleTest(scenario: String = "") async throws -> (crash: GeneratedCrash, explanation: CrashExplanation) {
         let crash = try await generateCrash(scenario: scenario)
         guard let jsonString = crash.toJSONString() else {
-            throw NSError(domain: "MemoryExplainer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to serialize crash"])
+            throw NSError(domain: "MemoryExplainer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Serialization failed"])
         }
         let explanation = try await explainCrashStructured(json: jsonString)
         return (crash, explanation)
@@ -128,16 +112,23 @@ public struct MemoryExplainerEngine {
         **Faulty Function:** `\(e.faultyFunction)`
         **Root Cause:** \(e.rootCause)
         **Fix:** \(e.suggestedFix)
-        **Confidence:** \(e.confidence.rawValue)
+        **Confidence:** \(e.confidence)
         """
     }
 
     private func formatMemoryExplanation(_ e: MemoryExplanation) -> String {
         """
         **Concerning:** \(e.isConcerning ? "Yes" : "No")
-        **Severity:** \(e.severity.rawValue)
+        **Severity:** \(e.severity)
         **Issue:** \(e.biggestIssue)
         **Fix:** \(e.suggestedFix)
         """
+    }
+
+    private func formatGenericExplanation(_ e: GenericExplanation) -> String {
+        var lines = ["**Summary:** \(e.summary)"]
+        if let concern = e.concern { lines.append("**Concern:** \(concern)") }
+        if let rec = e.recommendation { lines.append("**Recommendation:** \(rec)") }
+        return lines.joined(separator: "\n")
     }
 }
