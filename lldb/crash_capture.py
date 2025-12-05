@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 """
-LLDB memory analysis scripts for memory-explainer.
+LLDB crash capture script for memory-explainer.
 
-Captures crash context and memory usage info, outputs structured JSON
-that can be piped to codemap and/or Foundation Models for explanation.
+Captures crash context (stack trace, memory info, crash reason) and outputs
+structured JSON that can be piped to codemap and/or Foundation Models.
 
 Installation:
     Add to ~/.lldbinit-Xcode:
     command script import ~/Code/memory-explainer/lldb/crash_capture.py
 
-Commands:
-    (lldb) crash_explain           # Analyze current crash
+Usage in LLDB:
+    (lldb) crash_explain           # Basic crash info
+    (lldb) crash_explain --full    # Include memory dump
     (lldb) crash_explain --json    # Raw JSON output
-
-    (lldb) memory_explain          # Analyze memory usage
-    (lldb) memory_explain --top 20 # Show top 20 allocations
-    (lldb) memory_explain --json   # Raw JSON output
 """
 
 import lldb
 import json
 import subprocess
 import os
+import shutil
+import sys
 
 
 def get_crash_info(thread, target, include_memory=False):
@@ -77,14 +76,18 @@ def get_crash_info(thread, target, include_memory=False):
 
         # Get local variables
         variables = []
-        for var in frame.GetVariables(True, True, True, True):
-            var_info = {
-                "name": var.GetName(),
-                "type": var.GetTypeName(),
-                "value": var.GetValue(),
-                "summary": var.GetSummary(),
-            }
-            variables.append(var_info)
+        try:
+            for var in frame.GetVariables(True, True, True, True):
+                var_info = {
+                    "name": var.GetName(),
+                    "type": var.GetTypeName(),
+                    "value": var.GetValue(),
+                    "summary": var.GetSummary(),
+                }
+                variables.append(var_info)
+        except Exception as e:
+            # Don't fail the whole dump if variable inspect fails
+            pass
 
         if variables:
             frame_info["variables"] = variables
@@ -118,17 +121,51 @@ def get_crash_info(thread, target, include_memory=False):
                             addr = int(addr_str, 16)
                             error = lldb.SBError()
                             # Read 64 bytes before and after
+                            # We catch errors here to prevent crashing the script
                             mem_before = target.GetProcess().ReadMemory(
                                 max(0, addr - 64), 64, error
                             )
-                            if mem_before:
+                            if error.Success() and mem_before:
                                 crash_info["memory_before"] = mem_before.hex()
-                        except:
-                            pass
-                except:
+                            
+                            # Read memory at address
+                            mem_at = target.GetProcess().ReadMemory(
+                                addr, 64, error
+                            )
+                            if error.Success() and mem_at:
+                                crash_info["memory_at"] = mem_at.hex()
+
+                        except ValueError:
+                            pass  # int conversion failed
+                        except Exception as e:
+                            crash_info["memory_error"] = str(e)
+                except Exception as e:
+                    # Failed to parse address
                     pass
 
     return crash_info
+
+
+def find_codemap_binary():
+    """Find the codemap binary, looking in common paths if not in PATH."""
+    
+    # Check current PATH
+    path = shutil.which("codemap")
+    if path:
+        return path
+        
+    # Check common locations for Homebrew
+    common_paths = [
+        "/opt/homebrew/bin/codemap",
+        "/usr/local/bin/codemap",
+        os.path.expanduser("~/go/bin/codemap")  # Common Go install path
+    ]
+    
+    for p in common_paths:
+        if os.path.exists(p) and os.access(p, os.X_OK):
+            return p
+            
+    return None
 
 
 def get_codemap_context(project_path, crash_file):
@@ -138,25 +175,24 @@ def get_codemap_context(project_path, crash_file):
         return None
 
     try:
-        # Check if codemap is available
-        result = subprocess.run(
-            ["which", "codemap"],
-            capture_output=True,
-            text=True
-        )
-        if result.returncode != 0:
+        codemap_bin = find_codemap_binary()
+        if not codemap_bin:
             return {"error": "codemap not found. Install with: brew install jordancoin/tap/codemap"}
 
         # Get dependencies
         deps_result = subprocess.run(
-            ["codemap", "--deps", "--json", project_path],
+            [codemap_bin, "--deps", "--json", project_path],
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=10,
+            env=dict(os.environ, PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin") # Ensure basic path
         )
 
         if deps_result.returncode == 0:
-            deps = json.loads(deps_result.stdout)
+            try:
+                deps = json.loads(deps_result.stdout)
+            except json.JSONDecodeError:
+                return {"error": "codemap output not valid JSON"}
 
             # Find info about the crashed file
             crash_file_name = os.path.basename(crash_file)
@@ -178,11 +214,11 @@ def get_codemap_context(project_path, crash_file):
                 "crash_file": crash_file,
                 "relevant_files": relevant_files,
             }
+        else:
+             return {"error": f"codemap failed with code {deps_result.returncode}: {deps_result.stderr}"}
 
     except subprocess.TimeoutExpired:
         return {"error": "codemap timed out"}
-    except json.JSONDecodeError:
-        return {"error": "codemap output not valid JSON"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -223,6 +259,8 @@ def format_crash_summary(crash_info, codemap_context=None):
             else:
                 funcs = f.get("functions", [])
                 lines.append(f"  → {f['path']} ({len(funcs)} functions)")
+    elif codemap_context and codemap_context.get("error"):
+         lines.append(f"\nCode context error: {codemap_context['error']}")
 
     lines.append("\n" + "=" * 60)
 
@@ -247,9 +285,12 @@ def crash_explain(debugger, command, result, internal_dict):
     # Get codemap project path if specified
     project_path = None
     if "--codemap" in args:
-        idx = args.index("--codemap")
-        if idx + 1 < len(args):
-            project_path = args[idx + 1]
+        try:
+            idx = args.index("--codemap")
+            if idx + 1 < len(args):
+                project_path = args[idx + 1]
+        except ValueError:
+            pass
 
     target = debugger.GetSelectedTarget()
     if not target:
@@ -314,7 +355,18 @@ def crash_explain(debugger, command, result, internal_dict):
         # Hint about JSON output
         result.PutCString("\nTip: Use 'crash_explain --json' for structured output")
         if not codemap_context:
-            result.PutCString("Tip: Use 'crash_explain --codemap /path' to include code context")
+            result.PutCString("\nTip: Use 'crash_explain --codemap /path' to include code context")
+
+
+def __lldb_init_module(debugger, internal_dict):
+    """Called when the module is loaded by LLDB."""
+
+    debugger.HandleCommand(
+        'command script add -f crash_capture.crash_explain crash_explain'
+    )
+    print("memory-explainer: 'crash_explain' command loaded")
+    print("  Usage: crash_explain [--json] [--full] [--codemap /path/to/project]")
+    return None
 
 
 def run_lldb_command(debugger, cmd):
