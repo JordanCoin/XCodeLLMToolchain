@@ -1,0 +1,84 @@
+# Xcode
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcuserstate
+*.xcscmblueprint
+
+# Build
+build/
+DerivedData/
+*.build/
+.build/
+*.o
+*.dSYM
+*.dia
+*.hmap
+*.ipa
+*.xcarchive
+
+# Swift Package Manager
+.swiftpm/
+Package.resolved
+Packages/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Generated files
+*.generated.swift
+*.pb.swift
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE
+*.idea/
+*.vscode/
+*.sublime-*
+
+# Instruments traces (large binary files)
+*.trace
+*.trace/
+
+# App bundles (built output)
+*.app/
+
+# Module cache
+ModuleCache/
+
+# Index
+Index/
+index/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Crash logs
+*.crash
+*.ips
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
