@@ -62,6 +62,24 @@ public struct GenericExplanation {
     public var recommendation: String?
 }
 
+// MARK: - Breakpoint Explanation (Output)
+
+/// Explains current program state at a breakpoint.
+@Generable
+public struct BreakpointExplanation {
+    @Guide(description: "What the current function appears to be doing")
+    public var currentAction: String
+
+    @Guide(description: "Key observations about variable values")
+    public var observations: String
+
+    @Guide(description: "Potential issues or things to watch for")
+    public var potentialIssues: String?
+
+    @Guide(description: "Suggested next debugging step")
+    public var nextStep: String
+}
+
 // MARK: - Instructions (functions to avoid Sendable issues)
 
 /// Creates instructions for crash analysis sessions.
@@ -89,5 +107,15 @@ public func makeMemoryInstructions() -> Instructions {
         "You are an expert iOS/macOS memory debugger."
         "Focus on allocation counts, sizes, and potential leaks."
         "Be concise and actionable."
+    }
+}
+
+/// Creates instructions for breakpoint analysis.
+public func makeBreakpointInstructions() -> Instructions {
+    Instructions {
+        "You are an expert iOS/macOS debugger helping a developer understand their code."
+        "Analyze the current function, variables, and call stack."
+        "Explain what's happening and suggest what to look at next."
+        "Be concise and helpful."
     }
 }

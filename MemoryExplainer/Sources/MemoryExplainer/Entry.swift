@@ -8,6 +8,11 @@ struct MemoryExplainerCLI {
         let useTools = args.contains("--tools")
 
         // Handle special modes
+        if args.contains("--help") || args.contains("-h") {
+            printHelp()
+            return
+        }
+
         if args.contains("--generate") {
             await handleGenerate()
             return
@@ -59,6 +64,9 @@ struct MemoryExplainerCLI {
                     print("Analyzing crash...")
                     explanation = try await engine.explainCrash(json: jsonString, codemapContext: codemapContext)
                 }
+            } else if json["breakpoint"] != nil {
+                print("Analyzing breakpoint state...")
+                explanation = try await engine.explainBreakpoint(json: jsonString)
             } else if json["memory"] != nil || json["allocations"] != nil {
                 print("Analyzing memory...")
                 explanation = try await engine.explainMemory(json: jsonString)
@@ -142,22 +150,94 @@ struct MemoryExplainerCLI {
     }
 
     static func printUsage() {
+        print("Usage: crash_explain --json | memory-explainer [--tools]")
+        print("Try 'memory-explainer --help' for more information.")
+    }
+
+    static func printHelp() {
         print("""
         memory-explainer - On-device LLM crash/memory analysis
 
-        Usage:
-            crash_explain --json | memory-explainer [--tools]
-            cat crash.json | memory-explainer [--tools]
+        ┌─────────────────────────────────────────────────────────────────┐
+        │                    MEMORY EXPLAINER TOOLKIT                     │
+        ├─────────────────────────────────────────────────────────────────┤
+        │                                                                 │
+        │   LLDB Scripts ──┐                        ┌── Menu Bar App      │
+        │   (crash_explain) │                       │  (UI coming soon)   │
+        │                   ▼                       ▼                     │
+        │              ┌─────────────────────────────────┐                │
+        │              │     memory-explainer CLI        │                │
+        │              │   (this tool you're running)    │                │
+        │              └───────────────┬─────────────────┘                │
+        │                              ▼                                  │
+        │              ┌─────────────────────────────────┐                │
+        │              │    MemoryExplainerCore          │                │
+        │              │  @Generable structured output   │                │
+        │              └───────────────┬─────────────────┘                │
+        │                              ▼                                  │
+        │              ┌─────────────────────────────────┐                │
+        │              │  Apple Foundation Models (3B)   │                │
+        │              │      On-device, private         │                │
+        │              └─────────────────────────────────┘                │
+        │                                                                 │
+        └─────────────────────────────────────────────────────────────────┘
+
+        USAGE:
+            crash_explain --json | memory-explainer [OPTIONS]
+            cat crash.json | memory-explainer [OPTIONS]
             memory-explainer --generate
             memory-explainer --battle
 
-        Options:
+        OPTIONS:
+            --help, -h  Show this help message
             --tools     Enable tool calling (model can read source files)
             --generate  Generate a random crash scenario (outputs JSON)
-            --battle    Generate a crash then explain it (model vs model)
+            --battle    Generate crash then explain it (model vs model test)
 
-        Reads JSON from stdin, explains using Apple's Foundation Models.
-        Include "project_path" in JSON to enable source reading with --tools.
+        WORKFLOW FOR iOS ENGINEERS:
+
+        1. Hit a crash in Xcode debugger:
+           (lldb) crash_explain --json | memory-explainer
+
+        2. Analyze a saved crash JSON:
+           cat ~/crashes/mysterious_nil.json | memory-explainer
+
+        3. Let model read your source code for better diagnosis:
+           cat crash.json | memory-explainer --tools
+
+        4. Test the model's reasoning (adversarial):
+           memory-explainer --battle
+
+        JSON FORMAT:
+            {
+              "crash": {
+                "stop_description": "EXC_BAD_ACCESS (code=1, address=0x0)",
+                "frames": [
+                  {"function": "viewDidLoad", "file": "ViewController.swift", "line": 42}
+                ]
+              },
+              "project_path": "/path/to/your/project"  // enables --tools
+            }
+
+        WHAT YOU GET:
+            - Crash Type:      e.g., "force_unwrap_nil", "use_after_free"
+            - Faulty Function: The function where the bug originated
+            - Root Cause:      One sentence explaining WHY it crashed
+            - Suggested Fix:   Concrete action to fix it
+            - Confidence:      low/medium/high
+
+        EXAMPLES:
+            # Quick crash diagnosis
+            echo '{"crash":{"stop_description":"Fatal error: nil"}}' | memory-explainer
+
+            # Full analysis with source reading
+            cat real_crash.json | memory-explainer --tools
+
+            # Watch the model argue with itself
+            memory-explainer --battle
+
+        All analysis runs on-device using Apple's Foundation Models.
+        No data leaves your Mac. Your crashes stay private.
         """)
     }
 }

@@ -50,6 +50,23 @@ public struct MemoryExplainerEngine {
         return response.content
     }
 
+    // MARK: - Breakpoint Analysis
+
+    /// Explain current breakpoint state with structured output.
+    public func explainBreakpointStructured(json: String) async throws -> BreakpointExplanation {
+        let session = LanguageModelSession(instructions: makeBreakpointInstructions())
+        let response = try await session.respond(
+            to: "Explain this breakpoint state:\n\(json)",
+            generating: BreakpointExplanation.self
+        )
+        return response.content
+    }
+
+    public func explainBreakpoint(json: String) async throws -> String {
+        let result = try await explainBreakpointStructured(json: json)
+        return formatBreakpointExplanation(result)
+    }
+
     // MARK: - Generic Analysis
 
     /// Generic explanation with structured output.
@@ -123,6 +140,18 @@ public struct MemoryExplainerEngine {
         **Issue:** \(e.biggestIssue)
         **Fix:** \(e.suggestedFix)
         """
+    }
+
+    private func formatBreakpointExplanation(_ e: BreakpointExplanation) -> String {
+        var lines = [
+            "**Current Action:** \(e.currentAction)",
+            "**Observations:** \(e.observations)",
+        ]
+        if let issues = e.potentialIssues {
+            lines.append("**Watch For:** \(issues)")
+        }
+        lines.append("**Next Step:** \(e.nextStep)")
+        return lines.joined(separator: "\n")
     }
 
     private func formatGenericExplanation(_ e: GenericExplanation) -> String {
