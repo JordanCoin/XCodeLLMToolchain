@@ -95,6 +95,31 @@ public struct MemoryExplainerEngine {
         return response.content
     }
 
+    // MARK: - Crash Generation (for testing/adversarial)
+
+    /// Generate a realistic crash scenario using structured output
+    public func generateCrash(scenario: String = "") async throws -> GeneratedCrash {
+        let prompt = """
+        Generate a realistic iOS/macOS crash scenario.
+        \(scenario.isEmpty ? "Pick an interesting crash type that would be tricky to debug." : "Scenario: \(scenario)")
+        Use realistic Swift/UIKit function and file names.
+        """
+
+        let session = LanguageModelSession()
+        let response = try await session.respond(to: prompt, generating: GeneratedCrash.self)
+        return response.content
+    }
+
+    /// Generate and immediately explain (for battle testing)
+    public func battleTest(scenario: String = "") async throws -> (crash: GeneratedCrash, explanation: CrashExplanation) {
+        let crash = try await generateCrash(scenario: scenario)
+        guard let jsonString = crash.toJSONString() else {
+            throw NSError(domain: "MemoryExplainer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to serialize crash"])
+        }
+        let explanation = try await explainCrashStructured(json: jsonString)
+        return (crash, explanation)
+    }
+
     // MARK: - Formatting
 
     private func formatCrashExplanation(_ e: CrashExplanation) -> String {

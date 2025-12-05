@@ -7,6 +7,17 @@ struct MemoryExplainerCLI {
         let args = CommandLine.arguments
         let useTools = args.contains("--tools")
 
+        // Handle special modes
+        if args.contains("--generate") {
+            await handleGenerate()
+            return
+        }
+
+        if args.contains("--battle") {
+            await handleBattle()
+            return
+        }
+
         // Read JSON from stdin (piped from lldb crash_explain --json)
         let data = FileHandle.standardInput.readDataToEndOfFile()
 
@@ -74,6 +85,62 @@ struct MemoryExplainerCLI {
         """
     }
 
+    // MARK: - Generate Mode
+
+    static func handleGenerate() async {
+        let engine = MemoryExplainerEngine()
+        print("🎲 Generating crash scenario...")
+
+        do {
+            let crash = try await engine.generateCrash()
+            if let json = crash.toJSONString() {
+                print(json)
+            } else {
+                fputs("Error: Failed to serialize crash\n", stderr)
+                exit(1)
+            }
+        } catch {
+            fputs("Error: \(error.localizedDescription)\n", stderr)
+            exit(1)
+        }
+    }
+
+    // MARK: - Battle Mode
+
+    static func handleBattle() async {
+        let engine = MemoryExplainerEngine()
+
+        print("⚔️  BATTLE MODE: Generate → Explain")
+        print("=" * 50)
+
+        do {
+            print("\n🎲 Generating crash...")
+            let (crash, explanation) = try await engine.battleTest()
+
+            print("\n📋 Generated Crash:")
+            print("   Type: \(crash.crashType.rawValue)")
+            print("   Error: \(crash.stopDescription)")
+            print("   Frames:")
+            for (i, frame) in crash.frames.enumerated() {
+                print("     [\(i)] \(frame.function) @ \(frame.file):\(frame.line)")
+            }
+
+            print("\n🧠 Explanation:")
+            print("   Crash Type: \(explanation.crashType)")
+            print("   Faulty Function: \(explanation.faultyFunction)")
+            print("   Root Cause: \(explanation.rootCause)")
+            print("   Fix: \(explanation.suggestedFix)")
+            print("   Confidence: \(explanation.confidence.rawValue)")
+
+            print("\n" + "=" * 50)
+            print("🤔 Does the explanation match the generated crash?")
+
+        } catch {
+            fputs("Error: \(error.localizedDescription)\n", stderr)
+            exit(1)
+        }
+    }
+
     static func printUsage() {
         print("""
         memory-explainer - On-device LLM crash/memory analysis
@@ -81,12 +148,23 @@ struct MemoryExplainerCLI {
         Usage:
             crash_explain --json | memory-explainer [--tools]
             cat crash.json | memory-explainer [--tools]
+            memory-explainer --generate
+            memory-explainer --battle
 
         Options:
-            --tools    Enable tool calling (model can read source files)
+            --tools     Enable tool calling (model can read source files)
+            --generate  Generate a random crash scenario (outputs JSON)
+            --battle    Generate a crash then explain it (model vs model)
 
         Reads JSON from stdin, explains using Apple's Foundation Models.
         Include "project_path" in JSON to enable source reading with --tools.
         """)
+    }
+}
+
+// Helper
+extension String {
+    static func *(lhs: String, rhs: Int) -> String {
+        String(repeating: lhs, count: rhs)
     }
 }
