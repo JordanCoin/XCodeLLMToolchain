@@ -1,0 +1,27 @@
+{
+  "crash": {
+    "stop_reason": 1,
+    "stop_description": "EXC_BAD_ACCESS (code=1, address=0x6070000043d0)",
+    "thread_id": 12345,
+    "crash_type": "use_after_free",
+    "fault_address": "0x6070000043d0",
+    "frames": [
+      {
+        "index": 0,
+        "function": "crash_use_after_free",
+        "file": "crash_suite.c",
+        "line": 28,
+        "variables": [
+          {"name": "buffer", "type": "char *", "value": "0x6070000043d0", "summary": "(freed)"}
+        ]
+      },
+      {
+        "index": 1,
+        "function": "main",
+        "file": "crash_suite.c",
+        "line": 112
+      }
+    ],
+    "asan_report": "AddressSanitizer: heap-use-after-free on address 0x6070000043d0"
+  }
+}
