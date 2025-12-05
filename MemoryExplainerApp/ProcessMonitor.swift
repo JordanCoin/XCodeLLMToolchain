@@ -254,37 +254,22 @@ class ProcessMonitor: ObservableObject {
             "thread_count": process.threadCount
         ]
 
-        // If we have a trace, export allocations (limit to top 5 for LLM)
+        // If we have a trace, export allocations (more tokens available without codemap)
         if let traceFile = lastTraceFile, FileManager.default.fileExists(atPath: traceFile.path) {
             let allocations = try await exportAllocations(from: traceFile)
-            memoryData["allocations"] = Array(allocations.prefix(5))
+            memoryData["allocations"] = Array(allocations.prefix(10))  // Top 10 now that we have token budget
         }
 
-        // Get codemap context if we can find the project (limit size to avoid 4096 token limit)
-        var codemapContext = await getCodemapContext(for: process)
-        if codemapContext.count > 1000 {
-            codemapContext = String(codemapContext.prefix(1000)) + "\n... (truncated)"
-        }
-
-        // Build prompt
+        // Build prompt - keep it focused, ~1000 tokens input leaves room for response
         let jsonData = try JSONSerialization.data(withJSONObject: memoryData, options: .prettyPrinted)
         let jsonString = String(data: jsonData, encoding: .utf8) ?? "{}"
 
         let prompt = """
-        You are an expert iOS/macOS performance engineer. Analyze this memory data and explain any issues.
+        You are an expert iOS/macOS memory debugger. Analyze this data concisely.
 
-        Keep your response concise (3-5 sentences max). Focus on:
-        1. Is memory usage concerning?
-        2. Any obvious issues in the allocations?
-        3. One specific recommendation
-
-        MEMORY DATA:
         \(jsonString)
 
-        CODE CONTEXT:
-        \(codemapContext.isEmpty ? "Not available" : codemapContext)
-
-        Brief analysis:
+        In 2-4 sentences: Is this memory usage concerning? What's the biggest issue? One fix.
         """
 
         let session = LanguageModelSession()

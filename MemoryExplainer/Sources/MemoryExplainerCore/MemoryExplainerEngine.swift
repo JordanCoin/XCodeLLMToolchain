@@ -1,5 +1,6 @@
 import Foundation
 
+/// Core engine for memory/crash explanation. Token-conscious for Foundation Models (4096 limit).
 public struct MemoryExplainerEngine {
     private let llm: LLMClient
 
@@ -7,66 +8,48 @@ public struct MemoryExplainerEngine {
         self.llm = llm
     }
 
-    public func explainCrash(json: String, codemapContext: String) async throws -> String {
+    /// Explain a crash. Codemap context is useful here for understanding what touches the crash site.
+    public func explainCrash(json: String, codemapContext: String = "") async throws -> String {
+        // Truncate context to stay under token limit
+        let context = codemapContext.count > 800 ? String(codemapContext.prefix(800)) + "..." : codemapContext
+
         let prompt = """
-        You are an expert iOS/macOS debugger. Analyze this crash and explain it clearly.
+        Expert iOS/macOS debugger. Analyze this crash concisely.
 
-        Focus on:
-        1. What type of error occurred (EXC_BAD_ACCESS, SIGABRT, etc.)
-        2. Where it happened (function, file, line)
-        3. The likely root cause based on the stack trace
-        4. Specific steps to fix it
-
-        CRASH DATA:
+        CRASH:
         \(json)
+        \(context.isEmpty ? "" : "\nCODE CONTEXT:\n\(context)")
 
-        CODE CONTEXT (from codemap - shows file dependencies):
-        \(codemapContext.isEmpty ? "Not available" : codemapContext)
-
-        Provide a clear, actionable explanation:
+        In 3-5 sentences: What happened, why, and how to fix it.
         """
 
         return try await llm.respond(to: prompt)
     }
 
-    public func explainMemory(json: String, codemapContext: String) async throws -> String {
+    /// Explain memory usage. No codemap - allocation data is more valuable here.
+    public func explainMemory(json: String) async throws -> String {
         let prompt = """
-        You are an expert iOS/macOS performance engineer. Analyze this memory usage data.
+        Expert iOS/macOS memory debugger. Analyze this data concisely.
 
-        Focus on:
-        1. Which classes/types are using the most memory
-        2. Potential memory leaks or retention issues
-        3. Classes with suspiciously high instance counts
-        4. Specific recommendations to reduce memory usage
-
-        MEMORY DATA:
         \(json)
 
-        CODE CONTEXT (from codemap - shows file dependencies and structure):
-        \(codemapContext.isEmpty ? "Not available" : codemapContext)
-
-        If codemap context is available, explain:
-        - Which files create these objects
-        - Where they might be retained unexpectedly
-        - Architectural issues that could cause accumulation
-
-        Provide a clear analysis with specific recommendations:
+        In 2-4 sentences: Is this concerning? Biggest issue? One fix.
         """
 
         return try await llm.respond(to: prompt)
     }
 
-    public func explainGeneric(json: String, codemapContext: String) async throws -> String {
+    /// Generic explanation with optional context.
+    public func explainGeneric(json: String, context: String = "") async throws -> String {
+        let trimmedContext = context.count > 500 ? String(context.prefix(500)) + "..." : context
+
         let prompt = """
-        You are an expert iOS/macOS developer. Analyze this debugging data.
+        Expert iOS/macOS developer. Analyze this data.
 
-        DATA:
         \(json)
+        \(trimmedContext.isEmpty ? "" : "\nCONTEXT:\n\(trimmedContext)")
 
-        CODE CONTEXT:
-        \(codemapContext.isEmpty ? "Not available" : codemapContext)
-
-        Explain what this shows and provide recommendations:
+        Brief explanation and recommendations.
         """
 
         return try await llm.respond(to: prompt)
