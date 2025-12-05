@@ -1,10 +1,18 @@
 import Foundation
 import FoundationModels
 
-/// Core engine for memory/crash explanation using structured output.
+/// Core engine for memory/crash explanation using structured output and tool calling.
 public struct MemoryExplainerEngine {
+    /// Tools available to the model for gathering additional context
+    private let tools: [any Tool]
 
-    public init() {}
+    public init(enableTools: Bool = false) {
+        if enableTools {
+            self.tools = [ReadSourceTool(), CodeMapTool()]
+        } else {
+            self.tools = []
+        }
+    }
 
     /// Explain a crash with structured output - prevents hallucination via constrained decoding.
     public func explainCrashStructured(json: String, codemapContext: String = "") async throws -> CrashExplanation {
@@ -12,13 +20,34 @@ public struct MemoryExplainerEngine {
 
         let prompt = """
         Analyze this iOS/macOS crash. Only reference functions/files shown in the data.
+        \(tools.isEmpty ? "" : "You can use tools to read source code or get dependency info if needed.")
 
         CRASH DATA:
         \(json)
         \(context.isEmpty ? "" : "\nCODE CONTEXT:\n\(context)")
         """
 
-        let session = LanguageModelSession()
+        let session = LanguageModelSession(tools: tools)
+        let response = try await session.respond(to: prompt, generating: CrashExplanation.self)
+        return response.content
+    }
+
+    /// Explain a crash with tools enabled - model can fetch additional context
+    public func explainCrashWithTools(json: String, projectPath: String) async throws -> CrashExplanation {
+        let prompt = """
+        Analyze this iOS/macOS crash. You have tools available:
+        - read_source: Read source code around crash line
+        - get_dependencies: Get file dependency info from codemap
+
+        Use these tools if the crash data references files that exist in: \(projectPath)
+
+        CRASH DATA:
+        \(json)
+
+        First gather context with tools, then provide your analysis.
+        """
+
+        let session = LanguageModelSession(tools: [ReadSourceTool(), CodeMapTool()])
         let response = try await session.respond(to: prompt, generating: CrashExplanation.self)
         return response.content
     }

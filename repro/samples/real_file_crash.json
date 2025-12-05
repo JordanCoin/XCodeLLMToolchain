@@ -1,0 +1,24 @@
+{
+  "crash": {
+    "stop_description": "Fatal error: Unexpectedly found nil while unwrapping an Optional value",
+    "crash_type": "force_unwrap_nil",
+    "frames": [
+      {
+        "index": 0,
+        "function": "explainCrashStructured",
+        "file": "/Users/jordan/Code/memory-explainer/MemoryExplainer/Sources/MemoryExplainerCore/MemoryExplainerEngine.swift",
+        "line": 22,
+        "variables": [
+          {"name": "response", "type": "Response<CrashExplanation>?", "value": "nil"}
+        ]
+      },
+      {
+        "index": 1,
+        "function": "main",
+        "file": "/Users/jordan/Code/memory-explainer/MemoryExplainer/Sources/MemoryExplainer/Entry.swift",
+        "line": 39
+      }
+    ]
+  },
+  "project_path": "/Users/jordan/Code/memory-explainer"
+}
