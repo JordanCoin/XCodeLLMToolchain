@@ -1,25 +1,44 @@
 #!/bin/bash
-# Install memory-explainer LLDB commands
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_RAW_URL=${MEMORY_EXPLAINER_REPO:-"https://raw.githubusercontent.com/you/memory-explainer-tools/main/lldb"}
+TARGET_DIR="$HOME/Library/Application Support/MemoryExplainer/lldb"
 LLDBINIT="$HOME/.lldbinit-Xcode"
-IMPORT_LINE="command script import $SCRIPT_DIR/crash_capture.py"
+FILES=("crash_capture.py")
 
-echo "Installing memory-explainer LLDB commands..."
+banner() {
+  cat <<'BANNER'
+ __  __                                      ______            _             
+|  \/  | ___ _ __ ___  _ __ ___  _   _ _ __ |  ____|          | |            
+| |\/| |/ _ \ '__/ _ \| '_ ` _ \| | | | '_ \| |__ ___  ___  __| |_ __  _   _ 
+| |  | |  __/ | | (_) | | | | | | |_| | | | |  __/ _ \/ _ \/ _` | '_ \| | | |
+|_|  |_|\___|_|  \___/|_| |_| |_|\__,_|_| |_|_|  \___/\___/\__,_| .__/ \__, |
+                                                             | |     __/ |
+                                                             |_|    |___/ 
+Memory Explainer LLDB scripts installed. We're so back, fam.
+BANNER
+}
 
-# Check if already installed
-if [ -f "$LLDBINIT" ] && grep -q "crash_capture.py" "$LLDBINIT"; then
-    echo "Already installed in $LLDBINIT"
-    exit 0
-fi
+mkdir -p "$TARGET_DIR"
 
-# Append to .lldbinit-Xcode
-echo "" >> "$LLDBINIT"
-echo "# memory-explainer crash analysis" >> "$LLDBINIT"
-echo "$IMPORT_LINE" >> "$LLDBINIT"
+for file in "${FILES[@]}"; do
+  echo "Downloading $file → $TARGET_DIR"
+  curl -fsSL "$REPO_RAW_URL/$file" -o "$TARGET_DIR/$file"
+  chmod +x "$TARGET_DIR/$file" || true
+  IMPORT_LINE="command script import $TARGET_DIR/$file"
+  if [ ! -f "$LLDBINIT" ] || ! grep -Fq "$IMPORT_LINE" "$LLDBINIT"; then
+    {
+      echo "# memory-explainer-tools"
+      echo "$IMPORT_LINE"
+    } >> "$LLDBINIT"
+  fi
+  echo "Ensured $LLDBINIT imports $file"
+  echo "(lldb) crash_explain    # explain current crash"
+  echo "(lldb) memory_explain   # explain current memory story"
+  echo ""
 
-echo "Installed! Added to $LLDBINIT:"
-echo "  $IMPORT_LINE"
-echo ""
-echo "Restart Xcode to use. In LLDB console:"
-echo "  (lldb) crash_explain"
+done
+
+echo "Installed scripts in: $TARGET_DIR"
+echo "LLDB init: $LLDBINIT"
+banner
