@@ -1,112 +1,27 @@
 # XcodeLLMToolchain
 
-Open source crash and memory analysis tools using Apple's Foundation Models. No cloud, no API keys - runs entirely on your Mac's Neural Engine.
+**AI-powered crash debugging that runs entirely on your Mac.**
 
-## What's included
+Use Apple's Foundation Models to understand crashes, explain breakpoints, and analyze memory - all on-device, all private.
 
-- **MemoryExplainerCore** - Swift library for LLM-powered crash analysis
-- **memory-explainer** - CLI tool for crash explanation
-- **LLDB scripts** - Debug commands for Xcode (`explain_here`, `crash_explain`, `memory_explain`)
+[![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](https://developer.apple.com/macos/)
+[![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange)](https://swift.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Requirements
+---
 
-- macOS 26 (Tahoe) or later
-- Apple Silicon Mac
-- Xcode 26+
+## Why This Exists
 
-## Quick Start
+macOS 26 shipped two things that change debugging forever:
 
-### Install LLDB commands
-```bash
-echo 'command script import /path/to/XcodeLLMToolchain/lldb/plugin.py' >> ~/.lldbinit-Xcode
-```
+1. **Foundation Models** - Apple's 3B parameter LLM running on the Neural Engine
+2. **xzone_malloc + MTE** - Memory bugs now come with receipts
 
-Or use the install script:
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/JordanCoin/XcodeLLMToolchain/main/lldb/install.sh)"
-```
-
-### Build the CLI
-```bash
-cd XcodeLLMToolchain
-swift build
-```
-
-### Use in Xcode
-```
-(lldb) explain_here            # Explain current breakpoint state
-(lldb) crash_explain --explain # Analyze a crash with LLM
-(lldb) memory_explain          # Analyze memory state
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    XCODE LLM TOOLCHAIN                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   LLDB Scripts ────────┐                                    │
-│   (explain_here)       │                                    │
-│   (crash_explain)      ▼                                    │
-│                  ┌─────────────────────────────┐            │
-│                  │   memory-explainer CLI      │            │
-│                  └────────────┬────────────────┘            │
-│                               ▼                             │
-│                  ┌─────────────────────────────┐            │
-│                  │   MemoryExplainerCore       │            │
-│                  │  @Generable structured out  │            │
-│                  │  + Tool calling             │            │
-│                  └────────────┬────────────────┘            │
-│                               ▼                             │
-│                  ┌─────────────────────────────┐            │
-│                  │ Apple Foundation Models     │            │
-│                  │   On-device • Private       │            │
-│                  └─────────────────────────────┘            │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## LLDB Commands
-
-| Command | Usage | Output |
-|---------|-------|--------|
-| `explain_here` | At any breakpoint | What's happening, variable observations, next steps |
-| `crash_explain --explain` | When stopped at crash | Crash type, root cause, fix, confidence |
-| `crash_explain --json` | When stopped at crash | Raw JSON for scripting |
-| `memory_explain` | Any time | Memory overview and potential issues |
-
-## Using the Library
-
-Add MemoryExplainerCore as a dependency in your Swift package:
-
-```swift
-dependencies: [
-    .package(path: "/path/to/XcodeLLMToolchain")
-]
-```
-
-Then use it in your code:
-
-```swift
-import MemoryExplainerCore
-
-let engine = MemoryExplainerEngine()
-let explanation = try await engine.explainCrash(json: crashDataJSON)
-print(explanation.rootCause)
-print(explanation.suggestedFix)
-```
-
-## Example Workflow
-
-### 1. Hit a crash in Xcode
+This toolchain combines them. When your app crashes, you get an instant AI explanation - no uploading crash logs, no waiting for symbolication, no "what does this even mean?"
 
 ```
 (lldb) crash_explain --explain
-```
 
-**Output:**
-```
 Crash Type: force_unwrap_nil
 Faulty Function: fetchUserProfile
 Root Cause: Optional 'user' was nil when force-unwrapped after async network call
@@ -114,53 +29,244 @@ Fix: Use guard let or optional chaining instead of force unwrap
 Confidence: high
 ```
 
-### 2. Pause at a breakpoint you don't understand
+## Quick Start
+
+### Option 1: One-liner install (LLDB commands only)
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/JordanCoin/XcodeLLMToolchain/main/lldb/install.sh)"
+```
+
+### Option 2: Full install (CLI + library)
+
+```bash
+git clone https://github.com/JordanCoin/XcodeLLMToolchain.git
+cd XcodeLLMToolchain
+swift build
+
+# Add LLDB commands
+echo 'command script import ~/path/to/XcodeLLMToolchain/lldb/plugin.py' >> ~/.lldbinit-Xcode
+```
+
+## What You Get
+
+### LLDB Commands
+
+| Command | When to Use | What It Does |
+|---------|-------------|--------------|
+| `explain_here` | Any breakpoint | Explains current state, variables, what to look at next |
+| `crash_explain --explain` | When crashed | Root cause analysis with fix suggestions |
+| `crash_explain --json` | Scripting | Raw JSON for pipelines |
+| `memory_explain` | Memory issues | Analyzes allocations and potential leaks |
+
+### Swift Library
+
+```swift
+import MemoryExplainerCore
+
+let engine = MemoryExplainerEngine()
+let explanation = try await engine.explainCrash(json: crashJSON)
+
+print(explanation.crashType)     // "force_unwrap_nil"
+print(explanation.rootCause)     // "Optional 'user' was nil..."
+print(explanation.suggestedFix)  // "Use guard let..."
+print(explanation.confidence)    // "high"
+```
+
+### Battle Mode (LLM vs LLM)
+
+```bash
+# Generate a tricky crash, then explain it
+.build/debug/memory-explainer --battle
+
+# Watch the model try to fool itself
+```
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         YOUR APP CRASHES                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  LLDB captures: stack trace, variables, crash reason, etc.  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  codemap adds: dependency graph, related files, structure   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Foundation Models (on-device) analyzes with @Generable     │
+│  Structured output = no hallucinated function names         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│  You get: crash type, root cause, fix, confidence level     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key insight**: The `@Generable` macro forces the model to output valid Swift types. It can't make up function names that don't exist in your crash data.
+
+## Requirements
+
+- **macOS 26** (Tahoe) or later
+- **Apple Silicon** Mac (M1/M2/M3/M4)
+- **Xcode 26+**
+
+Optional but recommended:
+- **codemap**: `brew install jordancoin/tap/codemap` - gives the LLM more context about your codebase
+
+## Example Workflows
+
+### 1. "Why did this crash?"
+
+```
+(lldb) crash_explain --explain
+```
+
+Output:
+```
+Crash Type: use_after_free
+Faulty Function: handleNetworkResponse
+Root Cause: Closure captured 'self' weakly but accessed 'dataSource' after deallocation
+Fix: Add [weak dataSource] to closure capture list or check for nil before access
+Confidence: high
+```
+
+### 2. "What's happening at this breakpoint?"
 
 ```
 (lldb) explain_here
 ```
 
-**Output:**
+Output:
 ```
-Current Action: The code is submitting a quiz answer
-Observations: Variable 'self' is nil (weak capture), 'isEnabled' is false
-Watch For: The weak self capture may have been deallocated
-Next Step: Check if the view controller is still in memory when this closure runs
+Current Action: The code is validating user input before submission
+Observations: Variable 'email' is empty string, 'isValid' is false
+Watch For: The validation will fail silently without user feedback
+Next Step: Check if the email text field delegate is properly connected
 ```
 
-## Repo Structure
+### 3. "Is my memory usage okay?"
+
+```
+(lldb) memory_explain
+```
+
+Output:
+```
+Concerning: Yes
+Severity: warning
+Issue: 847 UIImage instances allocated - likely caching images without size limits
+Fix: Implement NSCache with countLimit or use SDWebImage for automatic memory management
+```
+
+## Project Structure
 
 ```
 XcodeLLMToolchain/
-├── Package.swift
 ├── Sources/
-│   ├── MemoryExplainer/        # CLI executable
-│   ├── MemoryExplainerCore/    # Library (engine, @Generable types, tools)
-│   └── SwiftCrashSuite/        # Test crash generator
-├── Tests/
-│   └── MemoryExplainerCoreTests/
+│   ├── MemoryExplainerCore/    # The brain - @Generable types, tools, engine
+│   │   ├── MemoryExplainerEngine.swift
+│   │   ├── CrashExplanation.swift
+│   │   └── Tools/
+│   │       ├── CodeMapTool.swift
+│   │       └── ReadSourceTool.swift
+│   ├── MemoryExplainer/        # CLI entry point
+│   └── SwiftCrashSuite/        # Test crashes (14 types)
 ├── lldb/
-│   ├── plugin.py               # LLDB entry point
-│   └── capture_lib/            # Analysis and formatting
-└── repro/                      # Sample crash data
+│   ├── plugin.py               # LLDB registration
+│   ├── install.sh              # One-liner installer
+│   └── capture_lib/            # Python crash capture
+└── Tests/
 ```
 
-## How It Works
+## Extending It
 
-- **Structured output**: Uses `@Generable` macros so the model outputs valid crash types - no hallucinations
-- **codemap integration**: Understands your codebase structure for better context
-- **Token-aware**: Automatically trims data to fit Foundation Models' context window
-- **Source reading**: Model can read your actual source files for deeper analysis
+### Add to your own app
 
-## Why This Exists
+```swift
+// Package.swift
+dependencies: [
+    .package(path: "/path/to/XcodeLLMToolchain")
+]
 
-macOS 26 introduced two things that make this possible:
+// Your code
+import MemoryExplainerCore
 
-1. **xzone_malloc + MTE**: Memory bugs are now deterministic with clear "receipts"
-2. **Foundation Models**: Apple's on-device 3B LLM - fast, private, no network required
+struct CrashReporter {
+    let engine = MemoryExplainerEngine(enableTools: true)
 
-Combine them with LLDB and you get AI-powered debugging that runs entirely on your Mac.
+    func explain(_ crashData: [String: Any]) async throws -> CrashExplanation {
+        let json = try JSONSerialization.data(withJSONObject: crashData)
+        return try await engine.explainCrashStructured(
+            json: String(data: json, encoding: .utf8)!
+        )
+    }
+}
+```
+
+### Add a new tool
+
+```swift
+public final class MyTool: Tool {
+    public let name = "my_tool"
+    public let description = "What it does..."
+
+    @Generable
+    public struct Arguments {
+        @Guide(description: "What this arg is for")
+        var input: String
+    }
+
+    public func call(arguments: Arguments) async throws -> String {
+        // Your logic here
+    }
+}
+```
+
+## Testing
+
+```bash
+# Run unit tests
+swift test
+
+# Test with real crashes
+swift build
+lldb .build/debug/swift-crash-suite -- force_unwrap
+(lldb) run
+(lldb) crash_explain --explain
+
+# All 14 crash types:
+# force_unwrap, array_bounds, implicit_unwrap, dict_unwrap,
+# type_cast, precondition, assertion, fatal_error, overflow,
+# unowned, range, recursion, div_zero, optional_chain
+```
+
+## Privacy
+
+**Everything runs on-device.** Your crash data never leaves your Mac. Foundation Models runs on the Neural Engine - no network calls, no API keys, no telemetry.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). PRs welcome for:
+- New crash type detection
+- Better prompts/instructions
+- Additional LLDB commands
+- Documentation improvements
 
 ## License
 
-MIT
+MIT - do whatever you want with it.
+
+---
+
+**Built for iOS/macOS engineers who are tired of staring at crash logs.**
+
+*If this saves you debugging time, star the repo.*
