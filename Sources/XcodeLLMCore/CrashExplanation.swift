@@ -6,7 +6,7 @@ import FoundationModels
 /// Structured crash explanation - constrained decoding prevents hallucination.
 /// Property order: independent fields first, summaries/analysis last.
 @Generable
-public struct CrashExplanation {
+public struct CrashExplanation: Sendable {
     @Guide(description: "The function name from the crash frames where the bug originated")
     public var faultyFunction: String
 

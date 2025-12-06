@@ -58,23 +58,24 @@ public struct FrameVariable {
 // MARK: - JSON Conversion
 
 extension GeneratedCrash {
-    /// Convert to JSON format expected by the explainer
+    /// Convert to JSON format expected by the explainer and scoring pipeline
     public func toJSON() -> [String: Any] {
         return [
-            "crash": [
-                "stop_description": stopDescription,
-                "crash_type": crashType.rawValue,
-                "frames": frames.map { frame in
-                    [
-                        "function": frame.function,
-                        "file": frame.file,
-                        "line": frame.line,
-                        "variables": frame.variables.map { v in
-                            ["name": v.name, "type": v.type, "value": v.value]
-                        }
-                    ] as [String: Any]
-                }
-            ]
+            "stop_description": stopDescription,
+            "stop_reason_type": "exception",
+            "crash_type": crashType.rawValue,
+            "frames": frames.enumerated().map { (index, frame) in
+                [
+                    "index": index,
+                    "function": frame.function,
+                    "file": frame.file,
+                    "line": frame.line,
+                    "is_system": false,
+                    "variables": frame.variables.map { v in
+                        ["name": v.name, "type": v.type, "value": v.value]
+                    }
+                ] as [String: Any]
+            }
         ]
     }
 
