@@ -112,7 +112,7 @@ def crash_explain(debugger, command, result, internal_dict):
         explainer_bin = find_memory_explainer_binary()
         if not explainer_bin:
             result.PutCString("Error: memory-explainer not found.")
-            result.PutCString("Build it: cd ~/Code/memory-explainer/MemoryExplainer && swift build")
+            result.PutCString("Build it: cd ~/Code/memory-explainer && swift build")
             return
 
         result.PutCString("🧠 Analyzing crash with Foundation Models...")

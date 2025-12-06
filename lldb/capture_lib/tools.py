@@ -89,8 +89,8 @@ def find_memory_explainer_binary():
         shutil.which("memory-explainer"),
         "/opt/homebrew/bin/memory-explainer",
         "/usr/local/bin/memory-explainer",
-        os.path.expanduser("~/Code/memory-explainer/MemoryExplainer/.build/debug/memory-explainer"),
-        os.path.expanduser("~/Code/memory-explainer/MemoryExplainer/.build/release/memory-explainer"),
+        os.path.expanduser("~/Code/memory-explainer/.build/debug/memory-explainer"),
+        os.path.expanduser("~/Code/memory-explainer/.build/release/memory-explainer"),
     ]
 
     for p in common_paths:
