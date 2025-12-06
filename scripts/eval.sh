@@ -1,10 +1,29 @@
 #!/bin/bash
 # Eval script: Run all crash primitives through pipeline and check accuracy
+#
+# Usage:
+#   ./scripts/eval.sh              # Run with direct mode (default)
+#   ./scripts/eval.sh --pipeline   # Run with scoring pipeline
+#   ./scripts/eval.sh --compare    # Run both and compare accuracy
 
 set -e
 
 GENERATOR=".build/debug/swift-crash-generator"
 ANALYZER=".build/debug/xcode-llm"
+MODE=""
+COMPARE=false
+
+# Parse args
+for arg in "$@"; do
+    case $arg in
+        --pipeline)
+            MODE="--pipeline"
+            ;;
+        --compare)
+            COMPARE=true
+            ;;
+    esac
+done
 
 # Colors
 GREEN='\033[0;32m'
@@ -20,8 +39,35 @@ SKIPPED=0
 # Results array
 declare -a RESULTS
 
+if [ "$COMPARE" = true ]; then
+    echo "========================================"
+    echo "  XcodeLLM Eval: DIRECT vs PIPELINE"
+    echo "========================================"
+    echo ""
+    echo "Running direct mode first, then pipeline mode..."
+    echo ""
+
+    # Run direct mode
+    DIRECT_RESULT=$("$0" 2>&1 | tail -5 | grep "Accuracy" | grep -o "[0-9.]*" || echo "0")
+
+    # Run pipeline mode
+    PIPELINE_RESULT=$("$0" --pipeline 2>&1 | tail -5 | grep "Accuracy" | grep -o "[0-9.]*" || echo "0")
+
+    echo "========================================"
+    echo "  COMPARISON RESULTS"
+    echo "========================================"
+    echo "  Direct Mode:   ${DIRECT_RESULT}%"
+    echo "  Pipeline Mode: ${PIPELINE_RESULT}%"
+    echo "========================================"
+    exit 0
+fi
+
+MODE_NAME="Direct"
+[ -n "$MODE" ] && MODE_NAME="Pipeline"
+
 echo "========================================"
 echo "  XcodeLLM Adversarial Eval Suite"
+echo "  Mode: $MODE_NAME"
 echo "========================================"
 echo ""
 
@@ -70,7 +116,7 @@ run_test() {
 
     # Run and capture
     local output
-    output=$(eval "$cmd" 2>/dev/null | $ANALYZER 2>/dev/null) || {
+    output=$(eval "$cmd" 2>/dev/null | $ANALYZER $MODE 2>/dev/null) || {
         echo -e "${YELLOW}SKIP${NC} (crash capture failed)"
         ((SKIPPED++))
         RESULTS+=("SKIP: $test_name")
