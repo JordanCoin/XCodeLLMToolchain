@@ -1,13 +1,12 @@
 # XcodeLLMToolchain
 
-On-device crash and memory analysis using Apple's Foundation Models. No cloud, no API keys - runs entirely on your Mac's Neural Engine.
+Open source crash and memory analysis tools using Apple's Foundation Models. No cloud, no API keys - runs entirely on your Mac's Neural Engine.
 
-## What it does
+## What's included
 
-- **Crash analysis**: Feed it crash data, get back structured explanations (crash type, root cause, suggested fix)
-- **Breakpoint debugging**: Ask "what's happening here?" at any breakpoint
-- **Memory inspection**: Analyze memory state and potential issues
-- **Works offline**: Uses Apple's on-device 3B LLM via Foundation Models framework
+- **MemoryExplainerCore** - Swift library for LLM-powered crash analysis
+- **memory-explainer** - CLI tool for crash explanation
+- **LLDB scripts** - Debug commands for Xcode (`explain_here`, `crash_explain`, `memory_explain`)
 
 ## Requirements
 
@@ -19,7 +18,18 @@ On-device crash and memory analysis using Apple's Foundation Models. No cloud, n
 
 ### Install LLDB commands
 ```bash
+echo 'command script import /path/to/XcodeLLMToolchain/lldb/plugin.py' >> ~/.lldbinit-Xcode
+```
+
+Or use the install script:
+```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/JordanCoin/XcodeLLMToolchain/main/lldb/install.sh)"
+```
+
+### Build the CLI
+```bash
+cd XcodeLLMToolchain
+swift build
 ```
 
 ### Use in Xcode
@@ -32,32 +42,32 @@ On-device crash and memory analysis using Apple's Foundation Models. No cloud, n
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      XCODE LLM TOOLCHAIN                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   LLDB Scripts ──┐                        ┌── Menu Bar App      │
-│   (explain_here)  │                       │   (coming soon)     │
-│                   ▼                       ▼                     │
-│              ┌─────────────────────────────────────┐            │
-│              │     memory-explainer CLI            │            │
-│              └───────────────┬─────────────────────┘            │
-│                              ▼                                  │
-│              ┌─────────────────────────────────────┐            │
-│              │    MemoryExplainerCore              │            │
-│              │  @Generable structured output       │            │
-│              │  + Tool calling (source reading)    │            │
-│              └───────────────┬─────────────────────┘            │
-│                              ▼                                  │
-│              ┌─────────────────────────────────────┐            │
-│              │  Apple Foundation Models (3B LLM)   │            │
-│              │      On-device • Private • Fast     │            │
-│              └─────────────────────────────────────┘            │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    XCODE LLM TOOLCHAIN                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   LLDB Scripts ────────┐                                    │
+│   (explain_here)       │                                    │
+│   (crash_explain)      ▼                                    │
+│                  ┌─────────────────────────────┐            │
+│                  │   memory-explainer CLI      │            │
+│                  └────────────┬────────────────┘            │
+│                               ▼                             │
+│                  ┌─────────────────────────────┐            │
+│                  │   MemoryExplainerCore       │            │
+│                  │  @Generable structured out  │            │
+│                  │  + Tool calling             │            │
+│                  └────────────┬────────────────┘            │
+│                               ▼                             │
+│                  ┌─────────────────────────────┐            │
+│                  │ Apple Foundation Models     │            │
+│                  │   On-device • Private       │            │
+│                  └─────────────────────────────┘            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Tools
+## LLDB Commands
 
 | Command | Usage | Output |
 |---------|-------|--------|
@@ -65,7 +75,27 @@ On-device crash and memory analysis using Apple's Foundation Models. No cloud, n
 | `crash_explain --explain` | When stopped at crash | Crash type, root cause, fix, confidence |
 | `crash_explain --json` | When stopped at crash | Raw JSON for scripting |
 | `memory_explain` | Any time | Memory overview and potential issues |
-| `memory-explainer --battle` | CLI | Model vs model test (generates crash, then explains it) |
+
+## Using the Library
+
+Add MemoryExplainerCore as a dependency in your Swift package:
+
+```swift
+dependencies: [
+    .package(path: "/path/to/XcodeLLMToolchain")
+]
+```
+
+Then use it in your code:
+
+```swift
+import MemoryExplainerCore
+
+let engine = MemoryExplainerEngine()
+let explanation = try await engine.explainCrash(json: crashDataJSON)
+print(explanation.rootCause)
+print(explanation.suggestedFix)
+```
 
 ## Example Workflow
 
@@ -98,42 +128,36 @@ Watch For: The weak self capture may have been deallocated
 Next Step: Check if the view controller is still in memory when this closure runs
 ```
 
-### 3. Test the model's reasoning
-
-```bash
-memory-explainer --battle
-```
-
-Generates a random crash, then tries to explain it. Useful for validating the model actually understands crash patterns.
-
-## How it works
-
-- **Structured output**: Uses `@Generable` macros so the model can only output valid crash types and fields - no hallucinated function names
-- **codemap integration**: Understands your codebase structure for better context
-- **Token-aware**: Automatically trims data to fit Foundation Models' context window
-- **Source reading**: With `--tools` flag, the model can read your actual source files
-
-## Repo structure
+## Repo Structure
 
 ```
 XcodeLLMToolchain/
-├── MemoryExplainer/
-│   └── Sources/
-│       ├── MemoryExplainer/        # CLI
-│       └── MemoryExplainerCore/    # Engine, @Generable types, tools
-├── MemoryExplainerApp/             # Menu bar app (coming soon)
-├── lldb/                           # LLDB Python scripts
-│   ├── plugin.py                   # Entry point
-│   └── capture_lib/                # Analysis, formatting, utilities
-└── repro/                          # Test crash suites
+├── Package.swift
+├── Sources/
+│   ├── MemoryExplainer/        # CLI executable
+│   ├── MemoryExplainerCore/    # Library (engine, @Generable types, tools)
+│   └── SwiftCrashSuite/        # Test crash generator
+├── Tests/
+│   └── MemoryExplainerCoreTests/
+├── lldb/
+│   ├── plugin.py               # LLDB entry point
+│   └── capture_lib/            # Analysis and formatting
+└── repro/                      # Sample crash data
 ```
 
-## Why this exists
+## How It Works
+
+- **Structured output**: Uses `@Generable` macros so the model outputs valid crash types - no hallucinations
+- **codemap integration**: Understands your codebase structure for better context
+- **Token-aware**: Automatically trims data to fit Foundation Models' context window
+- **Source reading**: Model can read your actual source files for deeper analysis
+
+## Why This Exists
 
 macOS 26 introduced two things that make this possible:
 
-1. **xzone_malloc + MTE**: Memory bugs are now deterministic. Crashes have clear "receipts" instead of random corruption.
-2. **Foundation Models**: Apple's on-device 3B LLM. Fast, private, no network required.
+1. **xzone_malloc + MTE**: Memory bugs are now deterministic with clear "receipts"
+2. **Foundation Models**: Apple's on-device 3B LLM - fast, private, no network required
 
 Combine them with LLDB and you get AI-powered debugging that runs entirely on your Mac.
 
