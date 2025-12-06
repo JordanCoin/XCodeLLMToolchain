@@ -24,7 +24,7 @@ public actor VariableScorer {
         )
 
         // Collect variables from relevant frames
-        var variablesToScore: [(frameIndex: Int, variable: FrameVariable)] = []
+        var variablesToScore: [(frameIndex: Int, variable: CapturedVariable)] = []
 
         for frame in frames where relevantFrameIndices.contains(frame.index) {
             guard let vars = frame.variables else { continue }
@@ -45,9 +45,9 @@ public actor VariableScorer {
     }
 
     /// Pre-filter and prioritize variables by suspiciousness heuristics
-    private func prioritizeVariables(_ variables: [FrameVariable]) -> [FrameVariable] {
+    private func prioritizeVariables(_ variables: [CapturedVariable]) -> [CapturedVariable] {
         // Score by heuristics first, then let LLM do deep analysis
-        let scored = variables.map { v -> (variable: FrameVariable, priority: Int) in
+        let scored = variables.map { v -> (variable: CapturedVariable, priority: Int) in
             var priority = 0
 
             // Nil/None indicators
@@ -104,7 +104,7 @@ public actor VariableScorer {
 
     /// Score a batch of variables using LLM
     private func scoreVariableBatch(
-        _ variables: [(frameIndex: Int, variable: FrameVariable)],
+        _ variables: [(frameIndex: Int, variable: CapturedVariable)],
         crashContext: String
     ) async throws -> [VariableScore] {
         let session = LanguageModelSession(instructions: makeVariableScorerInstructions())
@@ -117,7 +117,7 @@ public actor VariableScorer {
 
     /// Build prompt for variable scoring
     private func buildVariablePrompt(
-        variables: [(frameIndex: Int, variable: FrameVariable)],
+        variables: [(frameIndex: Int, variable: CapturedVariable)],
         crashContext: String
     ) -> String {
         var prompt = "Crash: \(crashContext)\n\nAnalyze these variables for suspicious values:\n\n"

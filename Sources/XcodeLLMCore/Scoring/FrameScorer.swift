@@ -50,13 +50,15 @@ public actor FrameScorer {
     /// Pre-filter frames to reduce scoring load
     private func filterFramesForScoring(_ frames: [CrashFrame]) -> [CrashFrame] {
         // Always include first N frames (closest to crash)
-        let nearCrash = frames.prefix(5)
+        let nearCrashCount = min(5, config.maxFramesToScore)
+        let nearCrash = frames.prefix(nearCrashCount)
 
         // Include non-system frames up to our limit
-        let userFrames = frames.dropFirst(5).filter { !$0.isSystem }
+        let remainingSlots = max(0, config.maxFramesToScore - nearCrashCount)
+        let userFrames = frames.dropFirst(nearCrashCount).filter { !$0.isSystem }
 
         // Combine and limit
-        let combined = Array(nearCrash) + Array(userFrames.prefix(config.maxFramesToScore - 5))
+        let combined = Array(nearCrash) + Array(userFrames.prefix(remainingSlots))
         return Array(combined.prefix(config.maxFramesToScore))
     }
 

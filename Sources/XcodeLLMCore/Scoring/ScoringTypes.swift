@@ -11,9 +11,9 @@ public struct CrashFrame: Codable, Sendable {
     public let file: String?
     public let line: Int?
     public let isSystem: Bool
-    public let variables: [FrameVariable]?
+    public let variables: [CapturedVariable]?
 
-    public init(index: Int, function: String, module: String?, file: String?, line: Int?, isSystem: Bool, variables: [FrameVariable]?) {
+    public init(index: Int, function: String, module: String?, file: String?, line: Int?, isSystem: Bool, variables: [CapturedVariable]?) {
         self.index = index
         self.function = function
         self.module = module
@@ -24,8 +24,8 @@ public struct CrashFrame: Codable, Sendable {
     }
 }
 
-/// Variable captured at a frame
-public struct FrameVariable: Codable, Sendable {
+/// Variable captured at a frame (for scoring pipeline)
+public struct CapturedVariable: Codable, Sendable {
     public let name: String
     public let type: String?
     public let value: String?
@@ -66,9 +66,9 @@ public struct ParsedCrashData: Codable, Sendable {
             guard let index = frameDict["index"] as? Int,
                   let function = frameDict["function"] as? String else { return nil }
 
-            let variables: [FrameVariable]? = (frameDict["variables"] as? [[String: Any]])?.compactMap { varDict in
+            let variables: [CapturedVariable]? = (frameDict["variables"] as? [[String: Any]])?.compactMap { varDict in
                 guard let name = varDict["name"] as? String else { return nil }
-                return FrameVariable(
+                return CapturedVariable(
                     name: name,
                     type: varDict["type"] as? String,
                     value: varDict["value"] as? String,

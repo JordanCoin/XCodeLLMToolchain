@@ -1,6 +1,13 @@
 import Foundation
 import FoundationModels
 
+/// Helper type for batch context scoring
+@Generable
+struct ContextScoreBatch: Sendable {
+    @Guide(description: "Pattern scores for each analyzed file")
+    var scores: [ContextScore]
+}
+
 /// Scores code context for dangerous patterns.
 /// Reads source files around crash sites and identifies risky constructs.
 public actor ContextScorer {
@@ -105,13 +112,6 @@ public actor ContextScorer {
         let session = LanguageModelSession(instructions: makeContextScorerInstructions())
 
         let prompt = buildCodePrompt(snippets: snippets, fileLocations: fileLocations, crashContext: crashContext)
-
-        // We need a batch type for multiple context scores
-        @Generable
-        struct ContextScoreBatch: Sendable {
-            @Guide(description: "Pattern scores for each analyzed file")
-            var scores: [ContextScore]
-        }
 
         let response = try await session.respond(to: prompt, generating: ContextScoreBatch.self)
         return response.content.scores
