@@ -1,130 +1,165 @@
-# Memory Explainer
+# XcodeLLMToolchain
 
-A macOS menu bar app that explains memory issues using Apple's on-device LLM. Detects Xcode debugging sessions, records Instruments data, and provides AI-powered memory analysis - all from your menu bar.
+Open source crash and memory analysis tools using Apple's Foundation Models. No cloud, no API keys - runs entirely on your Mac's Neural Engine.
 
-## Features
+## What's included
 
-- **Auto-detect Xcode debugging** - Knows when you're debugging an app
-- **Live memory stats** - Memory usage and thread count at a glance
-- **Instruments integration** - Record 30s allocation traces via xctrace
-- **AI explanations** - On-device Foundation Models explains your memory usage
-- **Code context** - codemap integration shows how your code connects
-- **Bundled LLDB tools** - Deep inspection commands when paused in debugger
+- **MemoryExplainerCore** - Swift library for LLM-powered crash analysis
+- **memory-explainer** - CLI tool for crash explanation
+- **LLDB scripts** - Debug commands for Xcode (`explain_here`, `crash_explain`, `memory_explain`)
+
+## Requirements
+
+- macOS 26 (Tahoe) or later
+- Apple Silicon Mac
+- Xcode 26+
+
+## Quick Start
+
+### Install LLDB commands
+```bash
+echo 'command script import /path/to/XcodeLLMToolchain/lldb/plugin.py' >> ~/.lldbinit-Xcode
+```
+
+Or use the install script:
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/JordanCoin/XcodeLLMToolchain/main/lldb/install.sh)"
+```
+
+### Build the CLI
+```bash
+cd XcodeLLMToolchain
+swift build
+```
+
+### Use in Xcode
+```
+(lldb) explain_here            # Explain current breakpoint state
+(lldb) crash_explain --explain # Analyze a crash with LLM
+(lldb) memory_explain          # Analyze memory state
+```
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Memory Explainer.app                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
-│  │  Menu Bar UI │  │  CLI Tool    │  │  LLDB Scripts            │  │
-│  │  (SwiftUI)   │  │  (for LLDB)  │  │  crash_explain           │  │
-│  │              │  │              │  │  memory_explain          │  │
-│  └──────┬───────┘  └──────┬───────┘  └────────────┬─────────────┘  │
-│         │                 │                       │                 │
-│         └─────────────────┴───────────────────────┘                 │
-│                           │                                         │
-│  ┌────────────────────────┴────────────────────────────────────┐   │
-│  │                    Shared Core                               │   │
-│  │  • Process detection (debugserver parent)                    │   │
-│  │  • Memory analysis (footprint, xctrace)                      │   │
-│  │  • Foundation Models LLM (on-device 3B)                      │   │
-│  │  • codemap integration (code structure)                      │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    XCODE LLM TOOLCHAIN                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   LLDB Scripts ────────┐                                    │
+│   (explain_here)       │                                    │
+│   (crash_explain)      ▼                                    │
+│                  ┌─────────────────────────────┐            │
+│                  │   memory-explainer CLI      │            │
+│                  └────────────┬────────────────┘            │
+│                               ▼                             │
+│                  ┌─────────────────────────────┐            │
+│                  │   MemoryExplainerCore       │            │
+│                  │  @Generable structured out  │            │
+│                  │  + Tool calling             │            │
+│                  └────────────┬────────────────┘            │
+│                               ▼                             │
+│                  ┌─────────────────────────────┐            │
+│                  │ Apple Foundation Models     │            │
+│                  │   On-device • Private       │            │
+│                  └─────────────────────────────┘            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Two Ways to Use
+## LLDB Commands
 
-### 1. Menu Bar App (Live Monitoring)
-Run the app, debug something in Xcode, click the chip icon:
-- See memory/thread stats update live
-- Click "Record 30s" to capture allocation data
-- Click "Explain" for AI analysis
+| Command | Usage | Output |
+|---------|-------|--------|
+| `explain_here` | At any breakpoint | What's happening, variable observations, next steps |
+| `crash_explain --explain` | When stopped at crash | Crash type, root cause, fix, confidence |
+| `crash_explain --json` | When stopped at crash | Raw JSON for scripting |
+| `memory_explain` | Any time | Memory overview and potential issues |
 
-### 2. LLDB Commands (Deep Inspection)
-When paused at a breakpoint or crash in Xcode:
-```
-(lldb) crash_explain     # Explain current crash
-(lldb) memory_explain    # Analyze memory allocations
-```
+## Using the Library
 
-## Requirements
+Add MemoryExplainerCore as a dependency in your Swift package:
 
-- **macOS 26 (Tahoe)** - For Foundation Models (on-device LLM)
-- **Xcode 26** - For debugging and xctrace
-- **Apple Silicon Mac** with Apple Intelligence enabled
-- **codemap** (optional): `brew install jordancoin/tap/codemap`
-
-## Installation
-
-### From Release
-1. Download `Memory Explainer.app` from Releases
-2. Move to Applications
-3. Launch - it'll offer to install LLDB commands
-
-### From Source
-```bash
-git clone https://github.com/you/memory-explainer
-cd memory-explainer
-open MemoryExplainerApp.xcodeproj
-# Build and run (Cmd+R)
+```swift
+dependencies: [
+    .package(path: "/path/to/XcodeLLMToolchain")
+]
 ```
 
-## What It Explains
+Then use it in your code:
 
-| You see... | Memory Explainer adds... |
-|------------|-------------------------|
-| `Malloc 32 Bytes: 15,000` | "Small allocations typical of string/dictionary operations, not concerning" |
-| `30 MB memory usage` | "Moderate for a SwiftUI app with this thread count" |
-| `EXC_BAD_ACCESS` | "Use-after-free: object freed when view dismissed but closure retained it" |
+```swift
+import MemoryExplainerCore
 
-## Project Structure
+let engine = MemoryExplainerEngine()
+let explanation = try await engine.explainCrash(json: crashDataJSON)
+print(explanation.rootCause)
+print(explanation.suggestedFix)
+```
+
+## Example Workflow
+
+### 1. Hit a crash in Xcode
 
 ```
-memory-explainer/
-├── MemoryExplainerApp/          # Menu bar app (SwiftUI)
-│   ├── App.swift                # Main app, MenuBarExtra UI
-│   └── ProcessMonitor.swift     # Detection, xctrace, LLM
-├── MemoryExplainerApp.xcodeproj # Xcode project
-├── lldb/                        # LLDB Python scripts
-│   └── crash_capture.py         # crash_explain, memory_explain
-└── docs/
-    └── PLAN.md                  # Architecture & roadmap
+(lldb) crash_explain --explain
+```
+
+**Output:**
+```
+Crash Type: force_unwrap_nil
+Faulty Function: fetchUserProfile
+Root Cause: Optional 'user' was nil when force-unwrapped after async network call
+Fix: Use guard let or optional chaining instead of force unwrap
+Confidence: high
+```
+
+### 2. Pause at a breakpoint you don't understand
+
+```
+(lldb) explain_here
+```
+
+**Output:**
+```
+Current Action: The code is submitting a quiz answer
+Observations: Variable 'self' is nil (weak capture), 'isEnabled' is false
+Watch For: The weak self capture may have been deallocated
+Next Step: Check if the view controller is still in memory when this closure runs
+```
+
+## Repo Structure
+
+```
+XcodeLLMToolchain/
+├── Package.swift
+├── Sources/
+│   ├── MemoryExplainer/        # CLI executable
+│   ├── MemoryExplainerCore/    # Library (engine, @Generable types, tools)
+│   └── SwiftCrashSuite/        # Test crash generator
+├── Tests/
+│   └── MemoryExplainerCoreTests/
+├── lldb/
+│   ├── plugin.py               # LLDB entry point
+│   └── capture_lib/            # Analysis and formatting
+└── repro/                      # Sample crash data
 ```
 
 ## How It Works
 
-1. **Process Detection**: Monitors `ps` for processes whose parent is `debugserver` (Xcode debugging)
-2. **Memory Stats**: Uses `footprint` command to get accurate memory usage
-3. **Allocation Recording**: Runs `xctrace record --template Allocations` for 30s
-4. **Allocation Export**: Parses xctrace XML output for top allocation categories
-5. **LLM Analysis**: Sends memory data + codemap context to Foundation Models
-6. **Code Context**: Finds project in DerivedData, runs `codemap --deps` for structure
-
-## Roadmap
-
-- [x] Menu bar app with live process detection
-- [x] Memory stats display (footprint)
-- [x] xctrace Instruments integration
-- [x] Foundation Models LLM explanations
-- [x] codemap integration for code context
-- [ ] Bundle LLDB scripts with first-launch install
-- [ ] CLI tool for LLDB script callbacks
-- [ ] Allocation trend graphs
-- [ ] Export reports
+- **Structured output**: Uses `@Generable` macros so the model outputs valid crash types - no hallucinations
+- **codemap integration**: Understands your codebase structure for better context
+- **Token-aware**: Automatically trims data to fit Foundation Models' context window
+- **Source reading**: Model can read your actual source files for deeper analysis
 
 ## Why This Exists
 
-Apple's xzone_malloc + MTE makes memory bugs **deterministic** - crashes happen reliably at the point of corruption, not randomly later. This means:
+macOS 26 introduced two things that make this possible:
 
-- Better crash data for AI to reason about
-- codemap shows the "why" (code structure)
-- LLDB/xctrace shows the "what" (runtime state)
-- Foundation Models explains it in plain English
+1. **xzone_malloc + MTE**: Memory bugs are now deterministic with clear "receipts"
+2. **Foundation Models**: Apple's on-device 3B LLM - fast, private, no network required
+
+Combine them with LLDB and you get AI-powered debugging that runs entirely on your Mac.
 
 ## License
 

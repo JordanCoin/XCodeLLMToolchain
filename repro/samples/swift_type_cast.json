@@ -1,0 +1,31 @@
+{
+  "crash": {
+    "stop_reason": 6,
+    "stop_description": "Could not cast value of type 'Swift.String' to 'Swift.Int'",
+    "thread_id": 1,
+    "crash_type": "swift_cast_failure",
+    "frames": [
+      {
+        "index": 0,
+        "function": "Swift runtime failure: type cast failed",
+        "module": "libswiftCore.dylib"
+      },
+      {
+        "index": 1,
+        "function": "crashTypeCast()",
+        "file": "main.swift",
+        "line": 42,
+        "variables": [
+          {"name": "anything", "type": "Any", "value": "String", "summary": "\"I'm a string\""}
+        ]
+      },
+      {
+        "index": 2,
+        "function": "main",
+        "file": "main.swift",
+        "line": 162
+      }
+    ],
+    "swift_error": "Could not cast value of type 'Swift.String' to 'Swift.Int'"
+  }
+}

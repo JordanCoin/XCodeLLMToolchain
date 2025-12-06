@@ -1,0 +1,43 @@
+{
+  "crash": {
+    "stop_reason": 1,
+    "stop_description": "EXC_BAD_ACCESS (code=2, address=0x16f603ff0)",
+    "thread_id": 12345,
+    "crash_type": "stack_overflow",
+    "fault_address": "0x16f603ff0",
+    "frames": [
+      {
+        "index": 0,
+        "function": "crash_recursion",
+        "file": "crash_suite.c",
+        "line": 62,
+        "variables": [
+          {"name": "depth", "type": "int", "value": "2847"}
+        ]
+      },
+      {
+        "index": 1,
+        "function": "crash_recursion",
+        "file": "crash_suite.c",
+        "line": 62
+      },
+      {
+        "index": 2,
+        "function": "crash_recursion",
+        "file": "crash_suite.c",
+        "line": 62
+      },
+      {
+        "index": 3,
+        "function": "... (2844 more frames)"
+      },
+      {
+        "index": 2847,
+        "function": "main",
+        "file": "crash_suite.c",
+        "line": 120
+      }
+    ],
+    "note": "Recursive call with no base case, stack exhausted after ~2847 frames"
+  }
+}

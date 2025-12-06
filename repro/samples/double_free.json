@@ -1,0 +1,31 @@
+{
+  "crash": {
+    "stop_reason": 1,
+    "stop_description": "EXC_BAD_INSTRUCTION (code=1)",
+    "thread_id": 12345,
+    "crash_type": "double_free",
+    "frames": [
+      {
+        "index": 0,
+        "function": "free",
+        "module": "libsystem_malloc.dylib"
+      },
+      {
+        "index": 1,
+        "function": "crash_double_free",
+        "file": "crash_suite.c",
+        "line": 36,
+        "variables": [
+          {"name": "buffer", "type": "char *", "value": "0x6000000043d0", "summary": "(already freed)"}
+        ]
+      },
+      {
+        "index": 2,
+        "function": "main",
+        "file": "crash_suite.c",
+        "line": 114
+      }
+    ],
+    "malloc_error": "pointer being freed was not allocated"
+  }
+}

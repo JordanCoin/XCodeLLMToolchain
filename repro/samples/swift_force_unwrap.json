@@ -1,0 +1,31 @@
+{
+  "crash": {
+    "stop_reason": 6,
+    "stop_description": "Fatal error: Unexpectedly found nil while unwrapping an Optional value",
+    "thread_id": 1,
+    "crash_type": "swift_fatal_error",
+    "frames": [
+      {
+        "index": 0,
+        "function": "Swift runtime failure: force unwrapped nil value",
+        "module": "libswiftCore.dylib"
+      },
+      {
+        "index": 1,
+        "function": "crashForceUnwrap()",
+        "file": "main.swift",
+        "line": 18,
+        "variables": [
+          {"name": "maybeString", "type": "String?", "value": "nil", "summary": "none"}
+        ]
+      },
+      {
+        "index": 2,
+        "function": "main",
+        "file": "main.swift",
+        "line": 156
+      }
+    ],
+    "swift_error": "Unexpectedly found nil while unwrapping an Optional value"
+  }
+}
