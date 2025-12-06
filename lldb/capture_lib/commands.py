@@ -141,12 +141,14 @@ def crash_explain(debugger, command, result, internal_dict):
         result.PutCString(f"Analyzing crash ({char_count} chars, ~{est_tokens} tokens)...")
 
         try:
+            # Use pipeline mode for better accuracy (multi-layer scoring)
+            cmd = [explainer_bin, "--pipeline"]
             proc = subprocess.run(
-                [explainer_bin],
+                cmd,
                 input=json_data,
                 capture_output=True,
                 text=True,
-                timeout=60  # LLM can take a bit
+                timeout=90  # Pipeline takes longer but is more accurate
             )
             if proc.returncode == 0:
                 result.PutCString(proc.stdout)
