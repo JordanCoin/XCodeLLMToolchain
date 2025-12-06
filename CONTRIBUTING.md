@@ -71,13 +71,13 @@ lldb .build/debug/swift-crash-suite -- force_unwrap
 
 ```
 Sources/
-├── MemoryExplainerCore/     # Library - this is where most work happens
-│   ├── MemoryExplainerEngine.swift  # Main engine
-│   ├── CrashExplanation.swift       # @Generable types + Instructions
-│   ├── GeneratedCrash.swift         # For battle mode
-│   ├── LLMClient.swift              # Protocol for future backends
-│   └── Tools/                       # Tool calling
-├── MemoryExplainer/         # CLI - thin wrapper
+├── XcodeLLMCore/            # Library - this is where most work happens
+│   ├── XcodeLLMEngine.swift     # Main engine
+│   ├── CrashExplanation.swift   # @Generable types + Instructions
+│   ├── GeneratedCrash.swift     # For battle mode
+│   ├── LLMClient.swift          # Protocol for future backends
+│   └── Tools/                   # Tool calling
+├── XcodeLLM/                # CLI - thin wrapper
 └── SwiftCrashSuite/         # Test crashes
 
 lldb/
@@ -125,7 +125,7 @@ lldb .build/debug/swift-crash-suite -- your_new_type
 
 Tools let the LLM take actions during analysis (read files, query codemap, etc).
 
-1. Create `Sources/MemoryExplainerCore/Tools/YourTool.swift`:
+1. Create `Sources/XcodeLLMCore/Tools/YourTool.swift`:
 ```swift
 import Foundation
 import FoundationModels
@@ -149,7 +149,7 @@ public final class YourTool: Tool {
 }
 ```
 
-2. Add to engine in `MemoryExplainerEngine.swift`:
+2. Add to engine in `XcodeLLMEngine.swift`:
 ```swift
 public init(enableTools: Bool = false) {
     self.tools = enableTools ? [ReadSourceTool(), CodeMapTool(), YourTool()] : []

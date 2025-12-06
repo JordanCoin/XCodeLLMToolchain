@@ -1,8 +1,8 @@
 import Testing
-@testable import MemoryExplainerCore
+@testable import XcodeLLMCore
 
 @Test func engineInitializes() async throws {
-    let engine = MemoryExplainerEngine()
+    let engine = XcodeLLMEngine()
     #expect(engine != nil)
 }
 

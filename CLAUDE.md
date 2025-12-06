@@ -28,11 +28,11 @@ XcodeLLMToolchain is an open-source crash and memory analysis toolkit using Appl
 │                    XCODE LLM TOOLCHAIN                      │
 ├─────────────────────────────────────────────────────────────┤
 │   LLDB Scripts (Python)      CLI (Swift)                    │
-│   ├── explain_here           └── memory-explainer           │
+│   ├── explain_here           └── xcode-llm                  │
 │   ├── crash_explain                    │                    │
 │   └── memory_explain                   ▼                    │
 │              │              ┌─────────────────────────────┐ │
-│              └────────────► │   MemoryExplainerCore       │ │
+│              └────────────► │      XcodeLLMCore           │ │
 │                             │   @Generable types          │ │
 │                             │   Tool calling (codemap)    │ │
 │                             └────────────┬────────────────┘ │
@@ -48,11 +48,11 @@ XcodeLLMToolchain is an open-source crash and memory analysis toolkit using Appl
 
 | Path | Purpose |
 |------|---------|
-| `Sources/MemoryExplainerCore/MemoryExplainerEngine.swift` | Core LLM engine with structured output |
-| `Sources/MemoryExplainerCore/CrashExplanation.swift` | @Generable types and Instructions |
-| `Sources/MemoryExplainerCore/Tools/CodeMapTool.swift` | Tool for LLM to query codemap |
-| `Sources/MemoryExplainerCore/Tools/ReadSourceTool.swift` | Tool for LLM to read source files |
-| `Sources/MemoryExplainer/Entry.swift` | CLI entry point |
+| `Sources/XcodeLLMCore/XcodeLLMEngine.swift` | Core LLM engine with structured output |
+| `Sources/XcodeLLMCore/CrashExplanation.swift` | @Generable types and Instructions |
+| `Sources/XcodeLLMCore/Tools/CodeMapTool.swift` | Tool for LLM to query codemap |
+| `Sources/XcodeLLMCore/Tools/ReadSourceTool.swift` | Tool for LLM to read source files |
+| `Sources/XcodeLLM/Entry.swift` | CLI entry point |
 | `lldb/plugin.py` | LLDB command registration |
 | `lldb/capture_lib/commands.py` | crash_explain, memory_explain, explain_here |
 | `lldb/capture_lib/analysis.py` | Crash data extraction from LLDB |
@@ -70,7 +70,7 @@ swift build -c release
 swift test
 
 # Run CLI
-.build/debug/memory-explainer --help
+.build/debug/xcode-llm --help
 
 # Test with crash suite
 .build/debug/swift-crash-suite force_unwrap
@@ -128,7 +128,7 @@ let response = try await session.respond(
 The Python scripts in `lldb/` capture crash context and pipe JSON to the Swift CLI:
 
 ```
-LLDB → capture crash data → JSON → memory-explainer CLI → Foundation Models → structured explanation
+LLDB → capture crash data → JSON → xcode-llm CLI → Foundation Models → structured explanation
 ```
 
 ## Common Tasks
@@ -139,9 +139,9 @@ LLDB → capture crash data → JSON → memory-explainer CLI → Foundation Mod
 3. Add test case in `SwiftCrashSuite/main.swift`
 
 ### Adding a new tool
-1. Create `Sources/MemoryExplainerCore/Tools/NewTool.swift`
+1. Create `Sources/XcodeLLMCore/Tools/NewTool.swift`
 2. Implement `Tool` protocol with `@Generable` Arguments
-3. Add to tools array in `MemoryExplainerEngine.init()`
+3. Add to tools array in `XcodeLLMEngine.init()`
 
 ### Adding a new LLDB command
 1. Add function in `lldb/capture_lib/commands.py`
@@ -159,7 +159,7 @@ lldb .build/debug/swift-crash-suite -- force_unwrap
 (lldb) crash_explain --explain
 
 # Battle mode (generate crash, then explain)
-.build/debug/memory-explainer --battle
+.build/debug/xcode-llm --battle
 ```
 
 ## Dependencies

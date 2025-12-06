@@ -6,23 +6,23 @@ import subprocess
 
 def find_codemap_binary():
     """Find the codemap binary, looking in common paths if not in PATH."""
-    
+
     # Check current PATH
     path = shutil.which("codemap")
     if path:
         return path
-        
+
     # Check common locations for Homebrew
     common_paths = [
         "/opt/homebrew/bin/codemap",
         "/usr/local/bin/codemap",
         os.path.expanduser("~/go/bin/codemap")  # Common Go install path
     ]
-    
+
     for p in common_paths:
         if os.path.exists(p) and os.access(p, os.X_OK):
             return p
-            
+
     return None
 
 
@@ -83,17 +83,24 @@ def get_codemap_context(project_path, crash_file):
     return None
 
 
-def find_memory_explainer_binary():
-    """Find the memory-explainer binary."""
+def find_xcode_llm_binary():
+    """Find the xcode-llm binary."""
     common_paths = [
-        shutil.which("memory-explainer"),
-        "/opt/homebrew/bin/memory-explainer",
-        "/usr/local/bin/memory-explainer",
-        os.path.expanduser("~/Code/memory-explainer/.build/debug/memory-explainer"),
-        os.path.expanduser("~/Code/memory-explainer/.build/release/memory-explainer"),
+        shutil.which("xcode-llm"),
+        "/opt/homebrew/bin/xcode-llm",
+        "/usr/local/bin/xcode-llm",
+        os.path.expanduser("~/Code/XcodeLLMToolchain/.build/debug/xcode-llm"),
+        os.path.expanduser("~/Code/XcodeLLMToolchain/.build/release/xcode-llm"),
+        # Legacy paths for transition
+        os.path.expanduser("~/Code/memory-explainer/.build/debug/xcode-llm"),
+        os.path.expanduser("~/Code/memory-explainer/.build/release/xcode-llm"),
     ]
 
     for p in common_paths:
         if p and os.path.exists(p) and os.access(p, os.X_OK):
             return p
     return None
+
+
+# Alias for backwards compatibility
+find_memory_explainer_binary = find_xcode_llm_binary

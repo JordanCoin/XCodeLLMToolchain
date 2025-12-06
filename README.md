@@ -10,6 +10,23 @@ Use Apple's Foundation Models to understand crashes, explain breakpoints, and an
 
 ---
 
+## Add to Your Project (SPM)
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/JordanCoin/XcodeLLMToolchain.git", branch: "main")
+]
+```
+
+Then import:
+```swift
+import XcodeLLMCore
+```
+
+Or in Xcode: **File > Add Package Dependencies** > paste the URL.
+
+---
+
 ## Why This Exists
 
 macOS 26 shipped two things that change debugging forever:
@@ -62,9 +79,9 @@ echo 'command script import ~/path/to/XcodeLLMToolchain/lldb/plugin.py' >> ~/.ll
 ### Swift Library
 
 ```swift
-import MemoryExplainerCore
+import XcodeLLMCore
 
-let engine = MemoryExplainerEngine()
+let engine = XcodeLLMEngine()
 let explanation = try await engine.explainCrash(json: crashJSON)
 
 print(explanation.crashType)     // "force_unwrap_nil"
@@ -77,7 +94,7 @@ print(explanation.confidence)    // "high"
 
 ```bash
 # Generate a tricky crash, then explain it
-.build/debug/memory-explainer --battle
+.build/debug/xcode-llm --battle
 
 # Watch the model try to fool itself
 ```
@@ -172,13 +189,13 @@ Fix: Implement NSCache with countLimit or use SDWebImage for automatic memory ma
 ```
 XcodeLLMToolchain/
 ├── Sources/
-│   ├── MemoryExplainerCore/    # The brain - @Generable types, tools, engine
-│   │   ├── MemoryExplainerEngine.swift
+│   ├── XcodeLLMCore/           # The brain - @Generable types, tools, engine
+│   │   ├── XcodeLLMEngine.swift
 │   │   ├── CrashExplanation.swift
 │   │   └── Tools/
 │   │       ├── CodeMapTool.swift
 │   │       └── ReadSourceTool.swift
-│   ├── MemoryExplainer/        # CLI entry point
+│   ├── XcodeLLM/               # CLI entry point
 │   └── SwiftCrashSuite/        # Test crashes (14 types)
 ├── lldb/
 │   ├── plugin.py               # LLDB registration
@@ -194,14 +211,21 @@ XcodeLLMToolchain/
 ```swift
 // Package.swift
 dependencies: [
-    .package(path: "/path/to/XcodeLLMToolchain")
+    .package(url: "https://github.com/JordanCoin/XcodeLLMToolchain.git", branch: "main")
+],
+targets: [
+    .target(name: "YourApp", dependencies: [
+        .product(name: "XcodeLLMCore", package: "XcodeLLMToolchain")
+    ])
 ]
+```
 
+```swift
 // Your code
-import MemoryExplainerCore
+import XcodeLLMCore
 
 struct CrashReporter {
-    let engine = MemoryExplainerEngine(enableTools: true)
+    let engine = XcodeLLMEngine(enableTools: true)
 
     func explain(_ crashData: [String: Any]) async throws -> CrashExplanation {
         let json = try JSONSerialization.data(withJSONObject: crashData)

@@ -2,29 +2,29 @@
 import PackageDescription
 
 let package = Package(
-    name: "MemoryExplainer",
+    name: "XcodeLLM",
     platforms: [
         .macOS(.v26),
         .iOS(.v26)
     ],
     products: [
-        // Library for other apps to consume (like your menu bar app)
-        .library(name: "MemoryExplainerCore", targets: ["MemoryExplainerCore"]),
+        // Library for other apps to consume
+        .library(name: "XcodeLLMCore", targets: ["XcodeLLMCore"]),
         // CLI executable
-        .executable(name: "memory-explainer", targets: ["MemoryExplainer"]),
-        // Test crash generator (for testing the explainer)
+        .executable(name: "xcode-llm", targets: ["XcodeLLM"]),
+        // Test crash generator
         .executable(name: "swift-crash-suite", targets: ["SwiftCrashSuite"]),
     ],
     targets: [
         // Core library - the brains
         .target(
-            name: "MemoryExplainerCore",
+            name: "XcodeLLMCore",
             dependencies: []
         ),
         // CLI that uses the core
         .executableTarget(
-            name: "MemoryExplainer",
-            dependencies: ["MemoryExplainerCore"]
+            name: "XcodeLLM",
+            dependencies: ["XcodeLLMCore"]
         ),
         // Test crash generator
         .executableTarget(
@@ -33,8 +33,8 @@ let package = Package(
         ),
         // Unit tests
         .testTarget(
-            name: "MemoryExplainerCoreTests",
-            dependencies: ["MemoryExplainerCore"]
+            name: "XcodeLLMCoreTests",
+            dependencies: ["XcodeLLMCore"]
         ),
     ]
 )

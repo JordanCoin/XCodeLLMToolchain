@@ -1,9 +1,9 @@
 import Foundation
 import FoundationModels
 
-/// Core engine for memory/crash explanation using structured output and tool calling.
+/// Core engine for crash/memory explanation using structured output and tool calling.
 /// Uses Instructions for consistent behavior, @Generable for type-safe output.
-public struct MemoryExplainerEngine {
+public struct XcodeLLMEngine {
     private let tools: [any Tool]
 
     public init(enableTools: Bool = false) {
@@ -115,7 +115,7 @@ public struct MemoryExplainerEngine {
     public func battleTest(scenario: String = "") async throws -> (crash: GeneratedCrash, explanation: CrashExplanation) {
         let crash = try await generateCrash(scenario: scenario)
         guard let jsonString = crash.toJSONString() else {
-            throw NSError(domain: "MemoryExplainer", code: 1, userInfo: [NSLocalizedDescriptionKey: "Serialization failed"])
+            throw NSError(domain: "XcodeLLM", code: 1, userInfo: [NSLocalizedDescriptionKey: "Serialization failed"])
         }
         let explanation = try await explainCrashStructured(json: jsonString)
         return (crash, explanation)

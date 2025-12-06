@@ -10,9 +10,9 @@ from .analysis import (
     find_project_root
 )
 from .tools import (
-    find_codemap_binary, 
-    get_codemap_context, 
-    find_memory_explainer_binary
+    find_codemap_binary,
+    get_codemap_context,
+    find_xcode_llm_binary
 )
 from .formatting import (
     format_crash_summary, 
@@ -30,7 +30,7 @@ def crash_explain(debugger, command, result, internal_dict):
         crash_explain           - Show formatted crash summary
         crash_explain --json    - Output raw JSON
         crash_explain --full    - Include memory dump
-        crash_explain --explain - Send to memory-explainer for LLM analysis
+        crash_explain --explain - Send to xcode-llm for LLM analysis
         crash_explain --codemap /path/to/project - Include codemap context
     """
 
@@ -108,11 +108,11 @@ def crash_explain(debugger, command, result, internal_dict):
 
     # Output
     if run_explainer:
-        # Send directly to memory-explainer
-        explainer_bin = find_memory_explainer_binary()
+        # Send to xcode-llm CLI
+        explainer_bin = find_xcode_llm_binary()
         if not explainer_bin:
-            result.PutCString("Error: memory-explainer not found.")
-            result.PutCString("Build it: cd ~/Code/memory-explainer && swift build")
+            result.PutCString("Error: xcode-llm not found.")
+            result.PutCString("Build it: cd ~/Code/XcodeLLMToolchain && swift build")
             return
 
         result.PutCString("🧠 Analyzing crash with Foundation Models...")
@@ -136,7 +136,7 @@ def crash_explain(debugger, command, result, internal_dict):
         except subprocess.TimeoutExpired:
             result.PutCString("Error: Analysis timed out (60s)")
         except Exception as e:
-            result.PutCString(f"Error running memory-explainer: {e}")
+            result.PutCString(f"Error running xcode-llm: {e}")
 
     elif output_json:
         result.PutCString(json.dumps(output, indent=2))
@@ -236,7 +236,7 @@ def memory_explain(debugger, command, result, internal_dict):
         return
 
     # Send to LLM for analysis
-    explainer_bin = find_memory_explainer_binary()
+    explainer_bin = find_xcode_llm_binary()
     if not explainer_bin:
         # Fall back to just showing the data
         result.PutCString("\n" + "=" * 60)
@@ -249,7 +249,7 @@ def memory_explain(debugger, command, result, internal_dict):
         result.PutCString(f"  System frameworks: {memory_info['modules']['system_frameworks']}")
         if project_path:
             result.PutCString(f"Project: {project_path}")
-        result.PutCString("\nBuild memory-explainer for LLM analysis")
+        result.PutCString("\nBuild xcode-llm for LLM analysis: swift build")
         return
 
     result.PutCString("🧠 Analyzing memory with Foundation Models...")
@@ -363,9 +363,9 @@ def explain_here(debugger, command, result, internal_dict):
         return
 
     # Send to LLM
-    explainer_bin = find_memory_explainer_binary()
+    explainer_bin = find_xcode_llm_binary()
     if not explainer_bin:
-        result.PutCString("Error: memory-explainer not found")
+        result.PutCString("Error: xcode-llm not found. Build with: swift build")
         return
 
     result.PutCString("🧠 Analyzing breakpoint state...")
