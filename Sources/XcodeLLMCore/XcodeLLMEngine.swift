@@ -3,11 +3,63 @@ import FoundationModels
 
 /// Core engine for crash/memory explanation using structured output and tool calling.
 /// Uses Instructions for consistent behavior, @Generable for type-safe output.
+///
+/// Supports two analysis modes:
+/// - **Direct**: Single model call, faster but less accurate for complex crashes
+/// - **Pipeline**: Multi-layer scoring → synthesis → analysis, higher quality
 public struct XcodeLLMEngine {
     private let tools: [any Tool]
+    private let pipelineConfig: ScoringPipelineConfig
 
-    public init(enableTools: Bool = false) {
+    public init(enableTools: Bool = false, pipelineConfig: ScoringPipelineConfig = .default) {
         self.tools = enableTools ? [ReadSourceTool(), CodeMapTool()] : []
+        self.pipelineConfig = pipelineConfig
+    }
+
+    // MARK: - Pipeline Analysis (Recommended)
+
+    /// Analyze crash using the multi-layer scoring pipeline.
+    /// Runs frame/variable/context scorers in parallel, synthesizes, then analyzes.
+    /// Returns richer output with synthesis details and metrics.
+    public func explainCrashWithPipeline(json: String) async throws -> PipelineResult {
+        let pipeline = ScoringPipeline(config: pipelineConfig)
+        let (explanation, synthesis, metrics) = try await pipeline.analyze(json: json)
+        return PipelineResult(explanation: explanation, synthesis: synthesis, metrics: metrics)
+    }
+
+    /// Pipeline result with full scoring details
+    public struct PipelineResult: Sendable {
+        public let explanation: CrashExplanation
+        public let synthesis: SynthesizedContext
+        public let metrics: ScoringPipeline.PipelineMetrics
+
+        /// Formatted output for display
+        public var formatted: String {
+            """
+            \(metrics.description)
+
+            === SYNTHESIS ===
+            Pattern: \(synthesis.likelyCrashPattern)
+            Hypothesis: \(synthesis.preliminaryHypothesis)
+            Confidence: \(String(format: "%.0f%%", synthesis.hypothesisConfidence * 100))
+
+            Evidence:
+            \(synthesis.keyEvidence.enumerated().map { "  \($0.offset + 1). \($0.element)" }.joined(separator: "\n"))
+
+            === ANALYSIS ===
+            **Crash Type:** \(explanation.crashType)
+            **Faulty Function:** `\(explanation.faultyFunction)`
+            **Root Cause:** \(explanation.rootCause)
+            **Fix:** \(explanation.suggestedFix)
+            **Confidence:** \(explanation.confidence)
+            """
+        }
+    }
+
+    /// Debug: Run only the scoring and synthesis layers, skip final analysis
+    public func synthesizeOnly(json: String) async throws -> (SynthesizedContext, ScorerOutputs) {
+        let pipeline = ScoringPipeline(config: pipelineConfig)
+        return try await pipeline.synthesizeOnly(json: json)
     }
 
     // MARK: - Crash Analysis
