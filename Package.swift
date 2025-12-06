@@ -12,8 +12,10 @@ let package = Package(
         .library(name: "XcodeLLMCore", targets: ["XcodeLLMCore"]),
         // CLI executable
         .executable(name: "xcode-llm", targets: ["XcodeLLM"]),
-        // Test crash generator
+        // Test crash generator (curated cases)
         .executable(name: "swift-crash-suite", targets: ["SwiftCrashSuite"]),
+        // Random crash generator (for LLM evaluation)
+        .executable(name: "swift-crash-generator", targets: ["SwiftCrashGenerator"]),
     ],
     targets: [
         // Core library - the brains
@@ -26,9 +28,14 @@ let package = Package(
             name: "XcodeLLM",
             dependencies: ["XcodeLLMCore"]
         ),
-        // Test crash generator
+        // Test crash generator (curated cases)
         .executableTarget(
             name: "SwiftCrashSuite",
+            dependencies: []
+        ),
+        // Random crash generator (for LLM evaluation)
+        .executableTarget(
+            name: "SwiftCrashGenerator",
             dependencies: []
         ),
         // Unit tests
