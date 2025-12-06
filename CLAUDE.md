@@ -156,7 +156,7 @@ swift test
 # Manual testing with crash suite
 lldb .build/debug/swift-crash-suite -- force_unwrap
 (lldb) run
-(lldb) crash_explain --explain
+(lldb) crash_explain
 
 # Battle mode (generate crash, then explain)
 .build/debug/xcode-llm --battle

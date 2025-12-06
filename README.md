@@ -37,7 +37,7 @@ macOS 26 shipped two things that change debugging forever:
 This toolchain combines them. When your app crashes, you get an instant AI explanation - no uploading crash logs, no waiting for symbolication, no "what does this even mean?"
 
 ```
-(lldb) crash_explain --explain
+(lldb) crash_explain
 
 Crash Type: force_unwrap_nil
 Faulty Function: fetchUserProfile
@@ -72,7 +72,7 @@ echo 'command script import ~/path/to/XcodeLLMToolchain/lldb/plugin.py' >> ~/.ll
 | Command | When to Use | What It Does |
 |---------|-------------|--------------|
 | `explain_here` | Any breakpoint | Explains current state, variables, what to look at next |
-| `crash_explain --explain` | When crashed | Root cause analysis with fix suggestions |
+| `crash_explain` | When crashed | Root cause analysis with fix suggestions |
 | `crash_explain --json` | Scripting | Raw JSON for pipelines |
 | `memory_explain` | Memory issues | Analyzes allocations and potential leaks |
 
@@ -144,7 +144,7 @@ Optional but recommended:
 ### 1. "Why did this crash?"
 
 ```
-(lldb) crash_explain --explain
+(lldb) crash_explain
 ```
 
 Output:
@@ -265,7 +265,7 @@ swift test
 swift build
 lldb .build/debug/swift-crash-suite -- force_unwrap
 (lldb) run
-(lldb) crash_explain --explain
+(lldb) crash_explain
 
 # All 14 crash types:
 # force_unwrap, array_bounds, implicit_unwrap, dict_unwrap,

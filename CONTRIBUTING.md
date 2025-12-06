@@ -58,7 +58,7 @@ swift test
 swift build
 lldb .build/debug/swift-crash-suite -- force_unwrap
 (lldb) run
-(lldb) crash_explain --explain
+(lldb) crash_explain
 ```
 
 ### 5. Submit PR
@@ -118,7 +118,7 @@ public var crashType: String
 swift build
 lldb .build/debug/swift-crash-suite -- your_new_type
 (lldb) run
-(lldb) crash_explain --explain
+(lldb) crash_explain
 ```
 
 ## Adding a New Tool

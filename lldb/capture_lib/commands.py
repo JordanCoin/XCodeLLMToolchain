@@ -27,17 +27,17 @@ def crash_explain(debugger, command, result, internal_dict):
     Main LLDB command: crash_explain
 
     Usage:
-        crash_explain           - Show formatted crash summary
-        crash_explain --json    - Output raw JSON
-        crash_explain --full    - Include memory dump
-        crash_explain --explain - Send to xcode-llm for LLM analysis
+        crash_explain           - LLM-powered crash analysis (default)
+        crash_explain --json    - Output raw JSON (for scripting)
+        crash_explain --no-llm  - Just show formatted summary, no LLM
+        crash_explain --full    - Include memory dump in analysis
         crash_explain --codemap /path/to/project - Include codemap context
     """
 
     args = command.split()
     output_json = "--json" in args
     include_memory = "--full" in args
-    run_explainer = "--explain" in args
+    skip_llm = "--no-llm" in args
 
     # Get codemap project path if specified
     project_path = None
@@ -107,17 +107,26 @@ def crash_explain(debugger, command, result, internal_dict):
         output["project_path"] = project_path
 
     # Output
-    if run_explainer:
-        # Send to xcode-llm CLI
+    if output_json:
+        result.PutCString(json.dumps(output, indent=2))
+    elif skip_llm:
+        # Just show formatted summary without LLM
+        summary = format_crash_summary(crash_info, codemap_context)
+        result.PutCString(summary)
+    else:
+        # Default: LLM analysis
         explainer_bin = find_xcode_llm_binary()
         if not explainer_bin:
             result.PutCString("Error: xcode-llm not found.")
             result.PutCString("Build it: cd ~/Code/XcodeLLMToolchain && swift build")
+            result.PutCString("\nFalling back to summary:")
+            summary = format_crash_summary(crash_info, codemap_context)
+            result.PutCString(summary)
             return
 
-        result.PutCString("🧠 Analyzing crash with Foundation Models...")
+        result.PutCString("Analyzing crash with Foundation Models...")
 
-        # Trim data to fit token limit (Foundation Models has 4096 limit)
+        # Trim data to fit token limit
         trimmed_output = trim_for_llm(output)
 
         try:
@@ -137,16 +146,6 @@ def crash_explain(debugger, command, result, internal_dict):
             result.PutCString("Error: Analysis timed out (60s)")
         except Exception as e:
             result.PutCString(f"Error running xcode-llm: {e}")
-
-    elif output_json:
-        result.PutCString(json.dumps(output, indent=2))
-    else:
-        summary = format_crash_summary(crash_info, codemap_context)
-        result.PutCString(summary)
-
-        # Hint about LLM analysis
-        result.PutCString("\nTip: Use 'crash_explain --explain' for LLM analysis")
-        result.PutCString("     Use 'crash_explain --json' for raw JSON output")
 
 
 def memory_explain(debugger, command, result, internal_dict):

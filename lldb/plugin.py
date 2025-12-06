@@ -10,10 +10,9 @@ Installation:
     command script import ~/Code/XcodeLLMToolchain/lldb/plugin.py
 
 Usage in LLDB:
-    (lldb) crash_explain           # Basic crash info
-    (lldb) crash_explain --full    # Include memory dump
+    (lldb) crash_explain           # LLM crash analysis (default)
     (lldb) crash_explain --json    # Raw JSON output
-    (lldb) crash_explain --explain # LLM analysis
+    (lldb) crash_explain --no-llm  # Summary without LLM
     (lldb) explain_here            # Explain current breakpoint
     (lldb) memory_explain          # Analyze memory
 """
@@ -49,5 +48,5 @@ def __lldb_init_module(debugger, internal_dict):
 
     print("XcodeLLM loaded!")
     print("  explain_here   - Explain current state at any breakpoint")
-    print("  crash_explain  - Analyze crashes (use --explain for LLM)")
+    print("  crash_explain  - Analyze crashes with LLM (use --no-llm for summary only)")
     print("  memory_explain - Analyze memory usage")
