@@ -1,10 +1,10 @@
 import Foundation
 
 /// Main generator that composes crash primitives with complexity modifiers
-public struct CrashGenerator: Sendable {
+public struct CrashGenerator {
 
-    /// Random number generator
-    private var rng: RandomNumberGenerator
+    /// Random number generator (not Sendable, but struct is value type)
+    private var rng: any RandomNumberGenerator
 
     /// Configuration for generation
     public struct Config: Sendable {
@@ -45,7 +45,7 @@ public struct CrashGenerator: Sendable {
         if let seed = seed {
             self.rng = SeededRandomNumberGenerator(seed: seed)
         } else {
-            self.rng = SystemRandomNumberGenerator() as! RandomNumberGenerator
+            self.rng = SystemRandomNumberGenerator()
         }
     }
 
