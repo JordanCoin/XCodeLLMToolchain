@@ -351,11 +351,30 @@ def explain_here(debugger, command, result, internal_dict):
 
     # Get local variables (limit to prevent token overflow)
     for var in frame.GetVariables(True, True, False, True):  # args, locals, statics, scope
+        # Try multiple ways to get the value (Swift structs need special handling)
+        value = var.GetValue()
+        summary = var.GetSummary()
+
+        # Prefer summary for optionals (value is just "some"/"none", summary has actual value)
+        if summary and value in (None, "some", "none", "nil"):
+            value = summary
+        if value is None:
+            value = summary  # Fall back to summary
+        if value is None:
+            value = var.GetObjectDescription()  # For NSObject types
+        if value is None and var.GetNumChildren() > 0:
+            # For structs, show first few child values
+            children = []
+            for i in range(min(3, var.GetNumChildren())):
+                child = var.GetChildAtIndex(i)
+                child_val = child.GetValue() or child.GetSummary() or "?"
+                children.append(f"{child.GetName()}={child_val}")
+            value = "{" + ", ".join(children) + "}"
+
         var_info = {
             "name": var.GetName(),
             "type": var.GetTypeName(),
-            "value": str(var.GetValue())[:100],  # Truncate
-            "summary": str(var.GetSummary())[:100],
+            "value": str(value)[:100] if value else "?",
         }
         context["variables"].append(var_info)
 
