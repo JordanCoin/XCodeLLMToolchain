@@ -525,7 +525,8 @@ public enum CodeTemplates {
     }
 
     private static func crashExpressionOnly(_ code: String, primitive: CrashPrimitive) -> String {
-        // Extract just the crashing expression for use in getters
+        // Extract just the crashing expression for use in getters/subscripts
+        // Must return the appropriate type or crash trying
         switch primitive {
         case .forceUnwrapNil:
             return """
@@ -547,8 +548,42 @@ public enum CodeTemplates {
             let anything: Any = "string"
             return anything as! Int
             """
-        default:
-            return code
+        case .integerOverflow:
+            return """
+            let x = Int.max
+            return x + 1
+            """
+        case .divisionByZero:
+            return """
+            let x = 42
+            let y = 0
+            return x / y
+            """
+        case .stringIndexOutOfBounds:
+            return """
+            let str = "Hello"
+            let idx = str.index(str.startIndex, offsetBy: 100)
+            return String(str[idx])
+            """
+        case .preconditionFailure:
+            return """
+            precondition(false, "Triggered in getter")
+            return ""
+            """
+        case .fatalErrorCall:
+            return """
+            fatalError("Triggered in getter")
+            """
+        case .unownedAfterDealloc:
+            // This one is complex, fall back to fatalError
+            return """
+            fatalError("Unowned dealloc crash")
+            """
+        case .stackOverflow:
+            // Recursion doesn't fit well in a getter, use fatalError
+            return """
+            fatalError("Stack overflow not suitable for getter")
+            """
         }
     }
 }
