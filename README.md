@@ -5,6 +5,7 @@
 Use Apple's Foundation Models to understand crashes, explain breakpoints, and analyze memory - all on-device, all private.
 
 [![macOS 26+](https://img.shields.io/badge/macOS-26%2B-blue)](https://developer.apple.com/macos/)
+[![iOS 26+](https://img.shields.io/badge/iOS-26%2B-blue)](https://developer.apple.com/ios/)
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange)](https://swift.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -12,18 +13,30 @@ Use Apple's Foundation Models to understand crashes, explain breakpoints, and an
 
 ## Add to Your Project (SPM)
 
+**In Xcode:**
+1. **File > Add Package Dependencies**
+2. Paste: `https://github.com/JordanCoin/XcodeLLMToolchain.git`
+3. When prompted to choose products, set **XcodeLLMCore** to your app target (leave executables as "None")
+4. Import and use:
+
+```swift
+import XcodeLLMCore
+
+let engine = XcodeLLMEngine()
+let explanation = try await engine.explainCrash(json: crashJSON)
+```
+
+**Or in Package.swift:**
 ```swift
 dependencies: [
     .package(url: "https://github.com/JordanCoin/XcodeLLMToolchain.git", branch: "main")
+],
+targets: [
+    .target(name: "YourApp", dependencies: [
+        .product(name: "XcodeLLMCore", package: "XcodeLLMToolchain")
+    ])
 ]
 ```
-
-Then import:
-```swift
-import XcodeLLMCore
-```
-
-Or in Xcode: **File > Add Package Dependencies** > paste the URL.
 
 ---
 

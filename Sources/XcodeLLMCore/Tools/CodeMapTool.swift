@@ -18,6 +18,7 @@ public final class CodeMapTool: Tool {
     public init() {}
 
     public func call(arguments: Arguments) async throws -> String {
+        #if os(macOS)
         let codemapPath = "/opt/homebrew/bin/codemap"
 
         guard FileManager.default.fileExists(atPath: codemapPath) else {
@@ -72,5 +73,9 @@ public final class CodeMapTool: Tool {
         } catch {
             return "Error running codemap: \(error.localizedDescription)"
         }
+        #else
+        // Process is not available on iOS
+        return "codemap tool not available on iOS"
+        #endif
     }
 }
