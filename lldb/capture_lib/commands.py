@@ -38,6 +38,7 @@ def crash_explain(debugger, command, result, internal_dict):
     output_json = "--json" in args
     include_memory = "--full" in args
     skip_llm = "--no-llm" in args
+    debug_trimmed = "--debug" in args
 
     # Get codemap project path if specified
     project_path = None
@@ -109,6 +110,12 @@ def crash_explain(debugger, command, result, internal_dict):
     # Output
     if output_json:
         result.PutCString(json.dumps(output, indent=2))
+    elif debug_trimmed:
+        # Show the trimmed data that would be sent to LLM
+        trimmed = trim_for_llm(output)
+        result.PutCString(f"=== TRIMMED DATA ({len(json.dumps(trimmed))} chars) ===")
+        result.PutCString(json.dumps(trimmed, indent=2))
+        return
     elif skip_llm:
         # Just show formatted summary without LLM
         summary = format_crash_summary(crash_info, codemap_context)
@@ -124,13 +131,16 @@ def crash_explain(debugger, command, result, internal_dict):
             result.PutCString(summary)
             return
 
-        result.PutCString("Analyzing crash with Foundation Models...")
-
         # Trim data to fit token limit
         trimmed_output = trim_for_llm(output)
+        json_data = json.dumps(trimmed_output)
+
+        # Debug: show size (4096 tokens ≈ 16k chars, but need room for output)
+        char_count = len(json_data)
+        est_tokens = char_count // 4
+        result.PutCString(f"Analyzing crash ({char_count} chars, ~{est_tokens} tokens)...")
 
         try:
-            json_data = json.dumps(trimmed_output)
             proc = subprocess.run(
                 [explainer_bin],
                 input=json_data,

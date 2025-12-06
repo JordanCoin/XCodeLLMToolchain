@@ -41,75 +41,81 @@ def format_crash_summary(crash_info, codemap_context=None):
     return "\n".join(lines)
 
 
-def trim_for_llm(output, max_frames=50, max_vars=10):
+def trim_for_llm(output, max_frames=5, max_vars=3, max_chars=10000):
     """
-    Trim crash data to fit Foundation Models' ~32k token limit (macOS 26+).
-    Prioritizes user code frames while keeping context.
+    Trim crash data to fit Foundation Models' 4096 token limit.
+
+    4096 tokens ≈ 16,000 chars total (input + output).
+    Reserve ~6000 chars for output, so input budget is ~10,000 chars.
+
+    Strategy: Be ruthless. Only keep what's essential for diagnosis.
     """
     trimmed = {}
 
     if "crash" in output and output["crash"]:
         crash = output["crash"]
         trimmed["crash"] = {
-            "stop_description": crash.get("stop_description", ""),
-            "stop_reason_type": crash.get("stop_reason_type", ""),
-            "crash_type": crash.get("crash_type", ""),
-            "fault_address": crash.get("fault_address"),
-            "frames": [],
+            "stop": crash.get("stop_description", "")[:200],
+            "type": crash.get("crash_type", ""),
         }
 
-        # Smart Frame Selection
-        # 1. Always keep top 3 frames (context of crash)
-        # 2. Keep all USER frames (up to limit)
-        # 3. Skip middle system frames
-        
+        if crash.get("fault_address"):
+            trimmed["crash"]["addr"] = crash.get("fault_address")
+
+        # Only keep frames with SOURCE FILES (user code)
+        # System frames rarely have file info, user code always does
         all_frames = crash.get("frames", [])
-        keep_indices = set()
-        
-        # Always keep top 3
-        for i in range(min(3, len(all_frames))):
-            keep_indices.add(i)
-            
-        # Find user frames
-        user_frame_count = 0
-        for i, frame in enumerate(all_frames):
-            if not frame.get("is_system", False):
-                keep_indices.add(i)
-                user_frame_count += 1
-                if user_frame_count >= max_frames:
-                    break
-        
-        # Sort indices
-        sorted_indices = sorted(list(keep_indices))
-        
-        for i in sorted_indices:
-            frame = all_frames[i]
-            trimmed_frame = {
-                "index": frame.get("index"),
-                "function": frame.get("function", "<unknown>"),
-                "file": frame.get("file"),
-                "line": frame.get("line"),
-                "is_system": frame.get("is_system"),
+        user_frames = [f for f in all_frames if f.get("file") and not f.get("is_system", False)]
+
+        # Filter out Swift/system prefixes even if they have file info
+        user_frames = [f for f in user_frames if not any(
+            f.get("function", "").startswith(p) for p in
+            ["Swift.", "_swift_", "libswift", "@objc", "dispatch_", "CFRunLoop"]
+        )]
+
+        # Still nothing? Fall back to any frame with a file
+        if not user_frames:
+            user_frames = [f for f in all_frames if f.get("file")]
+
+        # Last resort: top 3
+        if not user_frames:
+            user_frames = all_frames[:3]
+
+        selected = user_frames[:max_frames]
+
+        trimmed["frames"] = []
+        for frame in selected:
+            f = {
+                "fn": frame.get("function", "?")[:100],  # Truncate long names
             }
-            # Keep only first few variables, trim values
-            if "variables" in frame:
-                trimmed_vars = []
+            if frame.get("file"):
+                # Just filename, not full path
+                import os
+                f["file"] = os.path.basename(frame.get("file", ""))
+            if frame.get("line"):
+                f["line"] = frame.get("line")
+
+            # Only keep a few key variables, very short values
+            if "variables" in frame and frame["variables"]:
+                vars_compact = []
                 for var in frame["variables"][:max_vars]:
-                    trimmed_vars.append({
-                        "name": var.get("name"),
-                        "type": var.get("type"),
-                        "value": str(var.get("value", ""))[:200],  # Increased truncation limit
-                    })
-                if trimmed_vars:
-                    trimmed_frame["variables"] = trimmed_vars
+                    v = var.get("value") or var.get("summary") or ""
+                    vars_compact.append(f"{var.get('name')}={str(v)[:50]}")
+                if vars_compact:
+                    f["vars"] = vars_compact
 
-            trimmed["crash"]["frames"].append(trimmed_frame)
+            trimmed["frames"].append(f)
 
-    # Include full codemap if available (we have room now)
-    if output.get("codemap"):
-        trimmed["codemap"] = output["codemap"]
-    if output.get("project_path"):
-        trimmed["project_path"] = output["project_path"]
+    # Skip codemap - too large, doesn't fit in 4096 tokens
+    # Skip project_path - not needed for analysis
+
+    # Final size check - if still too big, drop variables
+    import json
+    result_json = json.dumps(trimmed)
+    if len(result_json) > max_chars:
+        # Drop all variables to fit
+        for f in trimmed.get("frames", []):
+            f.pop("vars", None)
 
     return trimmed
 
