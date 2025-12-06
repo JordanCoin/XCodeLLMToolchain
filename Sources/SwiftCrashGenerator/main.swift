@@ -181,6 +181,14 @@ struct CrashRunner {
                 stopDescription = line.trimmingCharacters(in: .whitespaces)
                 stopReasonType = "exception"
                 break
+            } else if line.contains("arithmetic overflow") || line.contains("Arithmetic overflow") {
+                stopDescription = "Swift runtime failure: arithmetic overflow"
+                stopReasonType = "exception"
+                break
+            } else if line.contains("Division by zero") || line.contains("division by zero") {
+                stopDescription = "Fatal error: Division by zero"
+                stopReasonType = "exception"
+                break
             } else if line.contains("EXC_BAD_ACCESS") {
                 stopDescription = "EXC_BAD_ACCESS"
                 stopReasonType = "signal"

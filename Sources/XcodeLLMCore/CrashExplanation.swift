@@ -13,7 +13,7 @@ public struct CrashExplanation: Sendable {
     @Guide(description: "Category of crash", .anyOf([
         "null_pointer", "force_unwrap_nil", "use_after_free", "array_out_of_bounds",
         "type_cast_failure", "unowned_dealloc", "race_condition", "stack_overflow",
-        "assertion_failure", "memory_corruption", "division_by_zero", "other"
+        "assertion_failure", "memory_corruption", "division_by_zero", "integer_overflow", "other"
     ]))
     public var crashType: String
 
